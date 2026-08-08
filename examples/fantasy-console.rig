@@ -1,0 +1,129 @@
+{
+  "rig": "0.4.0",
+  "document": {
+    "title": "Fantasy console",
+    "defaultUnit": "px"
+  },
+  "entities": [
+    {
+      "id": "console",
+      "components": {
+        "rig.meta.named": {
+          "name": "console",
+          "stableId": "console"
+        },
+        "rig.pixel.canvas": {
+          "width": 128,
+          "height": 128,
+          "clearRgba": [0.0, 0.0, 0.125, 1.0]
+        }
+      }
+    },
+    {
+      "id": "palette",
+      "components": {
+        "rig.meta.named": {
+          "name": "palette",
+          "stableId": "palette"
+        },
+        "rig.pixel.palette": {
+          "colors": [
+            [0.0, 0.0, 0.0, 1.0],
+            [0.114, 0.169, 0.325, 1.0],
+            [0.494, 0.145, 0.325, 1.0],
+            [0.0, 0.529, 0.318, 1.0],
+            [0.671, 0.322, 0.212, 1.0],
+            [0.373, 0.341, 0.310, 1.0],
+            [0.761, 0.765, 0.780, 1.0],
+            [1.0, 0.945, 0.910, 1.0],
+            [1.0, 0.0, 0.302, 1.0],
+            [1.0, 0.639, 0.0, 1.0],
+            [1.0, 0.925, 0.153, 1.0],
+            [0.0, 0.894, 0.212, 1.0],
+            [0.161, 0.678, 1.0, 1.0],
+            [0.514, 0.463, 0.612, 1.0],
+            [1.0, 0.467, 0.659, 1.0],
+            [1.0, 0.800, 0.667, 1.0]
+          ]
+        }
+      }
+    },
+    {
+      "id": "game-code",
+      "components": {
+        "rig.meta.named": {
+          "name": "game-code",
+          "stableId": "game-code"
+        },
+        "rig.media.code": {
+          "text": "-- fantasy console demo\n-- _init/_update/_draw = SUDE Setup/Update/Draw\n-- Rig document for RigPlayer (.rig)\n\nfunction _init()\n x=64\n y=64\nend\n\nfunction _update()\n if btn(0) then x-=1 end\n if btn(1) then x+=1 end\n if btn(2) then y-=1 end\n if btn(3) then y+=1 end\nend\n\nfunction _draw()\n cls(1)\n map(0,0,0,0,16,2)\n spr(1,x-4,y-4)\n print(\"rig play\",40,4,6)\nend\n",
+          "language": "lua",
+          "readOnly": false
+        }
+      }
+    },
+    {
+      "id": "sprites",
+      "components": {
+        "rig.meta.named": {
+          "name": "sprites",
+          "stableId": "sprites"
+        },
+        "rig.pixel.tile_set": {
+          "palette": "palette",
+          "tileWidth": 8,
+          "tileHeight": 8,
+          "tilesAcross": 2,
+          "tileRows": 1,
+          "indices": [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 7, 7, 6, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7, 8, 8, 7, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 1, 7, 7, 7, 7, 7, 7, 1,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 7, 7, 7, 7, 8, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 6, 6, 1, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+          ],
+          "flags": [0, 0]
+        }
+      }
+    },
+    {
+      "id": "title-map",
+      "components": {
+        "rig.meta.named": {
+          "name": "title-map",
+          "stableId": "title-map"
+        },
+        "rig.pixel.tile_map": {
+          "tileSet": "sprites",
+          "width": 16,
+          "height": 2,
+          "tiles": [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+          ]
+        }
+      }
+    },
+    {
+      "id": "buttons-p0",
+      "components": {
+        "rig.meta.named": {
+          "name": "buttons-p0",
+          "stableId": "buttons-p0"
+        },
+        "rig.input.buttons": {
+          "player": 0,
+          "left": false,
+          "right": false,
+          "up": false,
+          "down": false,
+          "o": false,
+          "x": false
+        }
+      }
+    }
+  ]
+}

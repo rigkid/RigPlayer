@@ -1,0 +1,7 @@
+build/
+**/build/
+.vs/
+.DS_Store
+*.log
+.cursor/
+.claude/
