@@ -76,6 +76,9 @@ if(TARGET RigPlayer)
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 				"${CMAKE_CURRENT_SOURCE_DIR}/examples/fantasy-console.rig"
 				"$<TARGET_FILE_DIR:RigPlayer>/data/play/fantasy-console.rig"
-		COMMENT "Deploy fantasy-console.rig next to RigPlayer"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/jailbreak.rig"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/jailbreak.rig"
+		COMMENT "Deploy play documents next to RigPlayer"
 	)
 endif()
