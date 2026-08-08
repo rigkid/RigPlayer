@@ -17,6 +17,10 @@ export const PLAYER_KNOWN_KEYS = [
 	"rig.pixel.tile_map",
 	"rig.media.code",
 	"rig.input.buttons",
+	"rig.music.transport",
+	"rig.music.clock",
+	"rig.music.pattern",
+	"rig.music.sequencer",
 ];
 
 const KNOWN = new Set(PLAYER_KNOWN_KEYS);
@@ -36,6 +40,9 @@ const ALIASES = {
 	"rig.geometry.mesh": "not this host — geometry belongs in RigViewer",
 	"rig.spatial.camera": "not this host — geometry belongs in RigViewer",
 };
+
+/** Valid Rig keys Player deliberately ignores (no warn spam). */
+const COMPANION = new Set(["rig.media.asset_ref"]);
 
 function issue(level, code, message, extra = {}) {
 	return { level, code, message, ...extra };
@@ -216,6 +223,17 @@ export function validateDocument(input) {
 			}
 			if (KNOWN.has(key)) {
 				if (key === "rig.media.code") hasCode = true;
+				continue;
+			}
+			if (COMPANION.has(key)) {
+				notes.push(
+					issue(
+						"note",
+						"companion",
+						`Companion "${key}" on "${e.id ?? i}" — not used by Player`,
+						{ path: `${path}/components/${key}`, entity: e.id, key },
+					),
+				);
 				continue;
 			}
 			const suggestion = suggestKey(key);

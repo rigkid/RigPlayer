@@ -10,7 +10,7 @@ Scene sketches without a game loop belong in [RigViewer](https://github.com/rigk
 
 Same open / share shell as RigViewer: drop a `.rig`, File → Open, `?src=`, `?doc=`, `?local=`, `?embed=1`, Copy link, Save local, single-file HTML.
 
-Same validator, too: [`web/validate.mjs`](web/validate.mjs) is ported from RigViewer's — envelope checks, misplaced components, unknown-schema suggestions — with Player's known schemas (`rig.pixel.*`, `rig.media.code`, `rig.input.buttons`) swapped in for Viewer's scene ones. If a document fails to load, an **Issues** button appears in the header instead of a silent failure; click it (or it auto-opens on errors) to see exactly what's wrong and why.
+Same validator, too: [`web/validate.mjs`](web/validate.mjs) is ported from RigViewer's — envelope checks, misplaced components, unknown-schema suggestions — with Player's known schemas (`rig.pixel.*`, `rig.media.code`, `rig.music.*`, `rig.input.buttons`) swapped in for Viewer's scene ones. If a document fails to load, an **Issues** button appears in the header instead of a silent failure; click it (or it auto-opens on errors) to see exactly what's wrong and why.
 
 | | |
 |--|--|
@@ -18,11 +18,10 @@ Same validator, too: [`web/validate.mjs`](web/validate.mjs) is ported from RigVi
 | Fallback | https://rigkid.github.io/RigPlayer/ |
 | Offline | [`dist/rigplayer.html`](dist/rigplayer.html) — double-click, no server needed |
 
-The offline file is truly zero-setup: `file://` pages can't `fetch()` sibling files (null origin, no CORS), so `tools/bundle.mjs` inlines Fantasy console + Jailbreak straight into the HTML — File → Examples and the default demo work with no network or local server. `?src=`/`?doc=`/dropped files still need a server or a reachable URL, same as any browser fetch.
+The offline file is truly zero-setup: `file://` pages can't `fetch()` sibling files (null origin, no CORS), so `tools/bundle.mjs` inlines Jailbreak straight into the HTML — File → Examples and the default demo work with no network or local server. `?src=`/`?doc=`/dropped files still need a server or a reachable URL, same as any browser fetch.
 
 ```bash
 npm run serve
-# http://127.0.0.1:8766/web/?src=examples/fantasy-console.rig
 # http://127.0.0.1:8766/web/?src=examples/jailbreak.rig
 ```
 
@@ -43,7 +42,7 @@ build/bin/RigPlayer.exe examples/jailbreak.rig
 
 Needs sibling [rigDocumentShell](https://github.com/rigkid/rigDocumentShell) at `../rigDocumentShell` or under `RigKit/packs/rigDocumentShell`.
 
-No path → loads deployed `data/play/fantasy-console.rig`.
+No path → loads deployed `data/play/jailbreak.rig`.
 
 ## Showcase — Jailbreak
 
@@ -56,7 +55,7 @@ http://127.0.0.1:8766/web/?src=examples/jailbreak.rig
 build/bin/RigPlayer.exe examples/jailbreak.rig
 ```
 
-Audio (`sfx` / `music`) is silent; cartdata is in-memory only.
+Web audio plays `sfx` / `music` from `rig.music.pattern` (click or press a key once to unlock the browser audio context). Desktop builds are still silent. Cartdata is in-memory only.
 
 ## Controls
 

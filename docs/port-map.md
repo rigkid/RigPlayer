@@ -15,7 +15,8 @@ Same JSON document format as other Rig hosts.
 | `rig.media.code` (`language` lua / pico8) | Game Lua — sugar rewritten to stock Lua before load |
 | `rig.input.buttons` | Document may declare player 0; runtime drives `btn` / `btnp` from host keyboard |
 | `rig.meta.named` / document title | Window title |
-| `rig.music.*` / other `rig.*` | **Skipped** — reported in the Skipped keys window (rigDocumentShell) |
+| `rig.music.transport` / `clock` / `pattern` / `sequencer` | **Web:** Web Audio synth (PICO-8-ish waves 0–7). **Desktop:** still silent |
+| `rig.media.asset_ref` / other `rig.*` | **Skipped** — reported in Issues / Skipped keys |
 
 ## Lua API (fantasy-console subset)
 
@@ -28,7 +29,7 @@ Same JSON document format as other Rig hosts.
 | `color`, `pal`, `fillp` | Yes (draw remap + optional screen `pal(_,_,1)`) |
 | `flr` / `mid` / `abs` / `min` / `max` / `rnd` / `sin` / `cos` / `sqrt` | Yes (PICO-8 turn-based `sin`/`cos`) |
 | `add` / `del` / `all` / `count` / `split` | Yes |
-| `sfx` / `music` | Accepted no-op (silent) |
+| `sfx` / `music` | **Web:** plays `rig.music.pattern` via Web Audio. **Desktop:** accepted no-op (silent) |
 | `cartdata` / `dget` / `dset` | In-memory only (not persisted) |
 | PICO-8 sugar (`!=`, `0b…`, `+=` on names and `a.b` / `a[i]`) | Preprocessed |
 | Lua stdlib | Sandboxed — base / table / string / math / coroutine (no `io`, `os`, `require`) |

@@ -7,18 +7,21 @@ import { validateDocument } from "../../web/validate.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-test("fantasy-console example validates clean", () => {
-	const text = fs.readFileSync(path.join(root, "examples/fantasy-console.rig"), "utf8");
-	const r = validateDocument(text);
-	assert.equal(r.ok, true, r.errors.map((e) => e.message).join("; "));
-	assert.equal(r.errors.length, 0);
-});
-
 test("jailbreak example validates clean", () => {
 	const text = fs.readFileSync(path.join(root, "examples/jailbreak.rig"), "utf8");
 	const r = validateDocument(text);
 	assert.equal(r.ok, true, r.errors.map((e) => e.message).join("; "));
 	assert.equal(r.errors.length, 0);
+	// Music schemas are known (web audio plays them). Only non-player keys note.
+	assert.ok(
+		!r.warnings.some((w) => w.key?.startsWith("rig.music.")),
+		"rig.music.* should not be reported as skipped",
+	);
+	assert.equal(r.warnings.length, 0, "jailbreak should have no warnings once music is known");
+	assert.ok(
+		r.notes.some((n) => n.key === "rig.media.asset_ref"),
+		"source asset_ref is a quiet companion note",
+	);
 });
 
 test("invalid JSON surfaces a clear error", () => {

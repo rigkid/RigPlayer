@@ -90,12 +90,16 @@ function renderIssues(report, { autoOpen = true } = {}) {
 	const w = report?.warnings?.length || 0;
 	if (issuesRole) issuesRole.textContent = e || w ? `${e}× err · ${w}× warn` : "clean";
 	if (issuesToggle) {
+		const n = (report?.notes?.length || 0);
+		const serious = e + w;
 		if (!issues.length) {
 			issuesToggle.hidden = true;
 			issuesToggle.removeAttribute("data-level");
 		} else {
 			issuesToggle.hidden = false;
-			issuesToggle.textContent = e ? `⚠ ${e + w} issue${e + w === 1 ? "" : "s"}` : `${w} issue${w === 1 ? "" : "s"}`;
+			if (e) issuesToggle.textContent = `⚠ ${serious} issue${serious === 1 ? "" : "s"}`;
+			else if (w) issuesToggle.textContent = `${w} issue${w === 1 ? "" : "s"}`;
+			else issuesToggle.textContent = `${n} note${n === 1 ? "" : "s"}`;
 			issuesToggle.dataset.level = e ? "error" : w ? "warn" : "note";
 		}
 	}
@@ -400,7 +404,7 @@ function srcCandidates(s) {
 	if (/^([a-z]+:)?\/\//i.test(s) || s.startsWith("/")) return [s];
 	return [s, "../" + s];
 }
-const defaultDemo = "examples/fantasy-console.rig";
+const defaultDemo = "examples/jailbreak.rig";
 const demoUrls = srcCandidates(defaultDemo);
 
 if (docParam) {
@@ -437,7 +441,7 @@ if (docParam) {
 } else if (wantLocal) {
 	await restoreLocal();
 } else {
-	status.textContent = "Loading fantasy console…";
+	status.textContent = "Loading Jailbreak…";
 	const result = await tryFetch(demoUrls, defaultDemo);
 	if (!result.ok) {
 		empty.hidden = false;

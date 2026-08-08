@@ -108,7 +108,7 @@ void RigPlayerApp::setup() {
 	}
 
 	if (m_pendingPath.empty()) {
-		m_pendingPath = AppPaths::getDataDir() + "/play/fantasy-console.rig";
+		m_pendingPath = AppPaths::getDataDir() + "/play/jailbreak.rig";
 	}
 	loadDocument(m_pendingPath);
 	m_pendingPath.clear();

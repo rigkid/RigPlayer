@@ -3,6 +3,8 @@
  * Speaks the same surface as desktop PlayRuntime — Viewer presents; Player plays.
  */
 
+import { createAudioEngine } from "./audio.mjs";
+
 const SIZE = 128;
 const MAP_W = 128;
 const MAP_H = 32;
@@ -14,6 +16,10 @@ const KNOWN = new Set([
 	"rig.media.code",
 	"rig.input.buttons",
 	"rig.meta.named",
+	"rig.music.transport",
+	"rig.music.clock",
+	"rig.music.pattern",
+	"rig.music.sequencer",
 ]);
 
 const DEFAULT_PAL = [
@@ -224,7 +230,7 @@ function fengariApi() {
 
 /**
  * @param {string} text
- * @returns {{ title: string, skipped: string[], lua: string, palette: number[][], sprites: Uint8Array, map: Uint8Array, entityCount: number }}
+ * @returns {{ title: string, skipped: string[], lua: string, palette: number[][], sprites: Uint8Array, map: Uint8Array, entityCount: number, music: { bpm: number, patterns: object[] } }}
  */
 export function parsePlayDocument(text) {
 	const doc = JSON.parse(text);
@@ -235,6 +241,7 @@ export function parsePlayDocument(text) {
 	const sprites = new Uint8Array(SIZE * SIZE);
 	const map = new Uint8Array(MAP_W * MAP_H);
 	let entityCount = 0;
+	const music = { bpm: 120, patterns: /** @type {(object|null)[]} */ ([]) };
 
 	for (const ent of doc.entities || []) {
 		entityCount++;
@@ -287,9 +294,26 @@ export function parsePlayDocument(text) {
 		if (c["rig.media.code"]?.text) {
 			lua = c["rig.media.code"].text;
 		}
+		if (c["rig.music.transport"]?.bpm != null) {
+			const b = Number(c["rig.music.transport"].bpm);
+			if (b > 0) music.bpm = b;
+		}
+		if (c["rig.music.pattern"]?.steps && typeof ent.id === "string") {
+			const m = /^pattern-(\d+)$/.exec(ent.id);
+			if (m) {
+				const i = Number(m[1]);
+				const p = c["rig.music.pattern"];
+				music.patterns[i] = {
+					steps: p.steps,
+					stepsPerBeat: p.stepsPerBeat ?? 4,
+					loopStartStep: p.loopStartStep ?? 0,
+					loopEndStep: p.loopEndStep ?? 0,
+				};
+			}
+		}
 	}
 	if (!lua) throw new Error("no rig.media.code in document");
-	return { title, skipped, lua, palette, sprites, map, entityCount };
+	return { title, skipped, lua, palette, sprites, map, entityCount, music };
 }
 
 export function mountPlayer(canvas, parsed, opts = {}) {
@@ -316,6 +340,14 @@ export function mountPlayer(canvas, parsed, opts = {}) {
 	canvas.width = SIZE;
 	canvas.height = SIZE;
 	const image = ctx.createImageData(SIZE, SIZE);
+	const audio = createAudioEngine();
+	audio.load(parsed.music || { bpm: 120, patterns: [] });
+
+	const unlockAudio = () => {
+		void audio.unlock();
+	};
+	window.addEventListener("pointerdown", unlockAudio, { once: true });
+	window.addEventListener("keydown", unlockAudio, { once: true });
 
 	const state = {
 		title: parsed.title,
@@ -587,8 +619,18 @@ export function mountPlayer(canvas, parsed, opts = {}) {
 			state.fillpOn = state.fillp !== 0;
 			return 0;
 		});
-		reg("sfx", () => 0);
-		reg("music", () => 0);
+		reg("sfx", (L) => {
+			const n = cint(L, 1);
+			const channel = lua.lua_gettop(L) >= 2 && !lua.lua_isnoneornil(L, 2) ? cint(L, 2) : undefined;
+			const offset = lua.lua_gettop(L) >= 3 && !lua.lua_isnoneornil(L, 3) ? cint(L, 3) : 0;
+			audio.sfx(n, channel, offset);
+			return 0;
+		});
+		reg("music", (L) => {
+			const n = lua.lua_gettop(L) >= 1 && !lua.lua_isnoneornil(L, 1) ? cint(L, 1) : 0;
+			audio.music(n);
+			return 0;
+		});
 		reg("cartdata", () => {
 			state.cdata.fill(0);
 			return 0;
@@ -888,6 +930,9 @@ end
 		cancelAnimationFrame(state.raf);
 		window.removeEventListener("keydown", onKeyDown);
 		window.removeEventListener("keyup", onKeyUp);
+		window.removeEventListener("pointerdown", unlockAudio);
+		window.removeEventListener("keydown", unlockAudio);
+		audio.dispose();
 		if (state.L) {
 			lua.lua_close(state.L);
 			state.L = null;

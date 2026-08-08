@@ -74,9 +74,6 @@ if(TARGET RigPlayer)
 		COMMAND ${CMAKE_COMMAND} -E make_directory
 				"$<TARGET_FILE_DIR:RigPlayer>/data/play"
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"${CMAKE_CURRENT_SOURCE_DIR}/examples/fantasy-console.rig"
-				"$<TARGET_FILE_DIR:RigPlayer>/data/play/fantasy-console.rig"
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 				"${CMAKE_CURRENT_SOURCE_DIR}/examples/jailbreak.rig"
 				"$<TARGET_FILE_DIR:RigPlayer>/data/play/jailbreak.rig"
 		COMMENT "Deploy play documents next to RigPlayer"

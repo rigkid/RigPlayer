@@ -49,7 +49,7 @@ function listen(port, attemptsLeft) {
 	const onListening = () => {
 		server.off("error", onError);
 		console.log(`listening http://127.0.0.1:${port}/web/`);
-		console.log(`demo     http://127.0.0.1:${port}/web/?src=examples/fantasy-console.rig`);
+		console.log(`demo     http://127.0.0.1:${port}/web/?src=examples/jailbreak.rig`);
 		console.log(`jailbreak http://127.0.0.1:${port}/web/?src=examples/jailbreak.rig`);
 	};
 	server.once("error", onError);

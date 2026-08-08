@@ -149,9 +149,10 @@
 			padding: 0.25rem 0.35rem 0.35rem;
 			box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 			resize: both;
-			overflow: auto;
+			overflow: hidden;
 			display: flex;
 			flex-direction: column;
+			min-height: 0;
 		}
 		.rig-panel-head {
 			display: flex;
@@ -162,6 +163,7 @@
 			user-select: none;
 			touch-action: none;
 			font-size: 12px;
+			flex-shrink: 0;
 		}
 		.rig-panel-head:active { cursor: grabbing; }
 		.rig-panel-head > strong { margin-right: auto; font-weight: 600; }
@@ -189,7 +191,14 @@
 			order: 10;
 		}
 		.rig-x:hover { color: var(--text); }
-		.rig-panel-body { display: flex; flex-direction: column; gap: 0.35rem; }
+		.rig-panel-body {
+			display: flex;
+			flex-direction: column;
+			gap: 0.35rem;
+			flex: 1 1 auto;
+			min-height: 0;
+			overflow: auto;
+		}
 		#issues-panel {
 			position: absolute;
 			bottom: 42px;
@@ -363,7 +372,6 @@
 			<details class="menu" id="menu-examples">
 				<summary>Examples</summary>
 				<div class="menu-items">
-					<a class="menu-item" href="?src=examples/fantasy-console.rig">Fantasy console</a>
 					<a class="menu-item" href="?src=examples/jailbreak.rig">Jailbreak</a>
 				</div>
 			</details>

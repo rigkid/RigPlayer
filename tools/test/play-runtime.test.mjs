@@ -103,16 +103,6 @@ test("jailbreak.rig runs 3 seconds of frames with no runtime error", () => {
 	handle.dispose();
 });
 
-test("fantasy-console.rig runs frames with no runtime error", () => {
-	const text = fs.readFileSync(path.join(root, "examples/fantasy-console.rig"), "utf8");
-	const parsed = parsePlayDocument(text);
-	const errors = [];
-	const handle = mountPlayer(fakeCanvas(), parsed, { onError: (m) => errors.push(m) });
-	runFrames(handle, 60);
-	assert.deepEqual(errors, []);
-	handle.dispose();
-});
-
 test("pixel APIs accept fractional coordinates (PICO-8 has no integer subtype)", () => {
 	// Regression: jailbreak.rig's dust/blood particles carry fractional
 	// velocity (`vx=rnd(2.4)-1.2`) and feed straight into pset() every frame

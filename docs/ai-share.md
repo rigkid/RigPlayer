@@ -19,7 +19,7 @@ Budgets match Viewer (`web/share.mjs`): soft **4000** / hard **8000** encoded `?
 ## What to do as an agent
 
 1. Generate / convert a `.rig` with `rig.pixel.*` + Lua `rig.media.code` (see [port-map](port-map.md)).
-2. Prefer patterns from [examples/](../examples/) (`fantasy-console.rig`, `jailbreak.rig`).
+2. Prefer patterns from [examples/](../examples/) (`jailbreak.rig`).
 3. **If it doesn't load:** check the **Issues** button in the header — RigPlayer runs the same document validator as RigViewer (`web/validate.mjs`) and shows *why*, not just a blank canvas. Fix envelope errors (missing `rig`, misplaced component keys, no `rig.media.code`) before sharing the link.
 4. **If small:** Copy link → paste `?doc=` URL.
 5. **If hard (Jailbreak):** host the file and reply with:
@@ -34,11 +34,10 @@ Local preview:
 
 ```
 npm run serve
-http://127.0.0.1:<port>/web/?src=examples/fantasy-console.rig
 http://127.0.0.1:<port>/web/?src=examples/jailbreak.rig
 http://127.0.0.1:<port>/web/?doc=u1.<payload>
 http://127.0.0.1:<port>/web/?local=1
-http://127.0.0.1:<port>/web/?embed=1&src=examples/fantasy-console.rig
+http://127.0.0.1:<port>/web/?embed=1&src=examples/jailbreak.rig
 ```
 
 ## Embed
@@ -47,7 +46,7 @@ http://127.0.0.1:<port>/web/?embed=1&src=examples/fantasy-console.rig
 
 ```html
 <iframe
-  src="https://player.rig.works/?embed=1&src=examples/fantasy-console.rig"
+  src="https://player.rig.works/?embed=1&src=examples/jailbreak.rig"
   title="RigPlayer"
   style="width:100%;height:420px;border:0;border-radius:8px;background:#0b0d10"
   allow="fullscreen"
