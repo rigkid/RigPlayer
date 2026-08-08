@@ -257,19 +257,16 @@ export function parsePlayDocument(text) {
 			const th = ts.tileHeight ?? 8;
 			const across = ts.tilesAcross ?? 16;
 			const rows = ts.tileRows ?? 16;
+			const sheetW = across * tw;
+			const sheetH = rows * th;
 			sprites.fill(0);
-			let cursor = 0;
-			for (let ty = 0; ty < rows; ty++) {
-				for (let tx = 0; tx < across; tx++) {
-					for (let py = 0; py < th; py++) {
-						for (let px = 0; px < tw; px++) {
-							if (cursor >= idx.length) break;
-							const x = tx * tw + px;
-							const y = ty * th + py;
-							if (x < SIZE && y < SIZE) sprites[y * SIZE + x] = idx[cursor] & 15;
-							cursor++;
-						}
-					}
+			// `indices` is a plain row-major raster over the whole sheet — the
+			// same layout p8-to-rig/rig-to-p8 use (indices[y*sheetW+x]), *not*
+			// tile-blocked. Tile (tx,ty) just happens to occupy the pixel
+			// rectangle [tx*tw, ty*th, tw, th] within that raster.
+			for (let y = 0; y < sheetH && y < SIZE; y++) {
+				for (let x = 0; x < sheetW && x < SIZE; x++) {
+					sprites[y * SIZE + x] = (idx[y * sheetW + x] ?? 0) & 15;
 				}
 			}
 		}
@@ -295,8 +292,26 @@ export function parsePlayDocument(text) {
 	return { title, skipped, lua, palette, sprites, map, entityCount };
 }
 
-export function mountPlayer(canvas, parsed) {
+export function mountPlayer(canvas, parsed, opts = {}) {
 	const { lua, lauxlib, lualib, to_luastring, to_jsstring } = fengariApi();
+	const onError = opts.onError || (() => {});
+	/**
+	 * PICO-8 carts freely `print()` raw high-byte glyph codes (its extended
+	 * font) that aren't valid UTF-8. fengari's `to_jsstring` throws on those
+	 * ("cannot convert invalid utf8...") — and since that throw happens inside
+	 * a JS-registered Lua function, it isn't a protected Lua error, so it would
+	 * otherwise escape lua_pcall and kill the whole render loop. Decode
+	 * byte-for-byte (Latin-1) instead; ASCII is unaffected either way.
+	 */
+	function safeToJsString(bytes) {
+		try {
+			return to_jsstring(bytes);
+		} catch {
+			let s = "";
+			for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+			return s;
+		}
+	}
 	const ctx = canvas.getContext("2d", { alpha: false });
 	canvas.width = SIZE;
 	canvas.height = SIZE;
@@ -399,18 +414,28 @@ export function mountPlayer(canvas, parsed) {
 		}
 	}
 
+	/**
+	 * PICO-8 has no integer subtype — every number is a float, and its pixel
+	 * APIs (pset, spr, rect, ...) happily accept fractional coordinates from
+	 * cart math (e.g. velocity * dt) and just truncate them. fengari's Lua
+	 * 5.4 *does* distinguish integers from floats, so `luaL_checkinteger`
+	 * rejects a fractional value with "number has no integer representation"
+	 * — a protected Lua error that aborts the rest of _draw for that frame,
+	 * leaving only whatever drew before the crash on screen (the "jumbled"
+	 * look). Accept any number and floor it instead, matching PICO-8.
+	 */
 	function cint(L, i) {
-		return Number(lauxlib.luaL_checkinteger(L, i));
+		return Math.floor(Number(lauxlib.luaL_checknumber(L, i)));
 	}
 	function oint(L, i, d) {
 		if (lua.lua_gettop(L) < i || lua.lua_isnoneornil(L, i)) return d;
-		return Number(lauxlib.luaL_optinteger(L, i, d));
+		return Math.floor(Number(lauxlib.luaL_optnumber(L, i, d)));
 	}
 	function cnum(L, i) {
 		return Number(lauxlib.luaL_checknumber(L, i));
 	}
 	function cstr(L, i) {
-		return to_jsstring(lauxlib.luaL_checkstring(L, i));
+		return safeToJsString(lauxlib.luaL_checkstring(L, i));
 	}
 
 	function registerApi(L) {
@@ -452,7 +477,7 @@ export function mountPlayer(canvas, parsed) {
 			return 0;
 		});
 		reg("print", (L) => {
-			const text = lua.lua_isnoneornil(L, 1) ? "" : String(to_jsstring(lauxlib.luaL_tolstring(L, 1)) || "");
+			const text = lua.lua_isnoneornil(L, 1) ? "" : String(safeToJsString(lauxlib.luaL_tolstring(L, 1)) || "");
 			if (!lua.lua_isnoneornil(L, 1)) lua.lua_pop(L, 1);
 			const x0 = oint(L, 2, 0);
 			let y = oint(L, 3, 0);
@@ -706,18 +731,36 @@ end
 		}
 	}
 
+	function reportError(message) {
+		state.lastError = message;
+		console.error("play", message);
+		onError(message);
+	}
+
 	function callHook(name) {
 		const L = state.L;
-		if (!L) return;
+		if (!L || !state.alive) return;
 		lua.lua_getglobal(L, to_luastring(name));
 		if (!lua.lua_isfunction(L, -1)) {
 			lua.lua_pop(L, 1);
 			return;
 		}
-		if (lua.lua_pcall(L, 0, 0, 0) !== lua.LUA_OK) {
-			state.lastError = to_jsstring(lua.lua_tostring(L, -1));
-			console.error("play", name, state.lastError);
-			lua.lua_pop(L, 1);
+		// lua_pcall only protects against *Lua* errors (lua_error). A JS
+		// exception thrown inside one of our registered API functions (e.g. a
+		// decode failure) escapes it uncaught and would otherwise kill the
+		// render loop with a frozen — usually black — canvas and no visible
+		// cause. Catch that too and surface it instead of dying silently.
+		try {
+			if (lua.lua_pcall(L, 0, 0, 0) !== lua.LUA_OK) {
+				reportError(`${name}: ${safeToJsString(lua.lua_tostring(L, -1))}`);
+				lua.lua_pop(L, 1);
+			}
+		} catch (err) {
+			reportError(`${name}: ${err.message || err}`);
+			// The Lua VM's internal call bookkeeping may be inconsistent after an
+			// escaped JS exception — stop ticking rather than risk further,
+			// harder-to-diagnose failures from a half-unwound state.
+			state.alive = false;
 		}
 	}
 
@@ -739,7 +782,12 @@ end
 		callHook("_update");
 		callHook("_draw");
 		state.btnPrev = state.btn.slice();
-		upload();
+		try {
+			upload();
+		} catch (err) {
+			reportError(`upload: ${err.message || err}`);
+			state.alive = false;
+		}
 	}
 
 	function keyToBtn(code) {
@@ -822,12 +870,12 @@ end
 	const cooked = picoSugarToLua(parsed.lua);
 	const buf = to_luastring(cooked);
 	if (lauxlib.luaL_loadbuffer(L, buf, buf.length, to_luastring(parsed.title)) !== lua.LUA_OK) {
-		const err = to_jsstring(lua.lua_tostring(L, -1));
+		const err = safeToJsString(lua.lua_tostring(L, -1));
 		dispose();
 		throw new Error("load: " + err);
 	}
 	if (lua.lua_pcall(L, 0, 0, 0) !== lua.LUA_OK) {
-		const err = to_jsstring(lua.lua_tostring(L, -1));
+		const err = safeToJsString(lua.lua_tostring(L, -1));
 		dispose();
 		throw new Error("run: " + err);
 	}

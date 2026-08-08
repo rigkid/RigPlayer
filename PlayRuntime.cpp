@@ -393,24 +393,21 @@ std::string PlayRuntime::load(const std::string& path) {
 			const int th = c["rig.pixel.tile_set"].value("tileHeight", 8);
 			const int across = c["rig.pixel.tile_set"].value("tilesAcross", 16);
 			const int rows = c["rig.pixel.tile_set"].value("tileRows", 16);
+			const int sheetW = across * tw;
+			const int sheetH = rows * th;
 			m_sprites.fill(0);
-			size_t cursor = 0;
-			for (int ty = 0; ty < rows; ++ty) {
-				for (int tx = 0; tx < across; ++tx) {
-					for (int py = 0; py < th; ++py) {
-						for (int px = 0; px < tw; ++px) {
-							if (cursor >= idx.size()) {
-								break;
-							}
-							const int x = tx * tw + px;
-							const int y = ty * th + py;
-							if (x < kSize && y < kSize) {
-								m_sprites[static_cast<size_t>(y * kSize + x)] =
-									static_cast<uint8_t>(idx[cursor].get<int>() & 15);
-							}
-							++cursor;
-						}
+			// `indices` is a plain row-major raster over the whole sheet — the
+			// same layout p8-to-rig/rig-to-p8 use (indices[y*sheetW+x]), *not*
+			// tile-blocked. Tile (tx,ty) just happens to occupy the pixel
+			// rectangle [tx*tw, ty*th, tw, th] within that raster.
+			for (int y = 0; y < sheetH && y < kSize; ++y) {
+				for (int x = 0; x < sheetW && x < kSize; ++x) {
+					const size_t cursor = static_cast<size_t>(y) * static_cast<size_t>(sheetW) + static_cast<size_t>(x);
+					if (cursor >= idx.size()) {
+						continue;
 					}
+					m_sprites[static_cast<size_t>(y * kSize + x)] =
+						static_cast<uint8_t>(idx[cursor].get<int>() & 15);
 				}
 			}
 		}

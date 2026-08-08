@@ -2,6 +2,8 @@
  * Page boot for RigPlayer web — same open / share ladder as RigViewer.
  */
 import { parsePlayDocument, mountPlayer } from "./play.mjs";
+import { validateDocument } from "./validate.mjs";
+import { wirePanelHead } from "./ui.mjs";
 import {
 	assessDocSize,
 	buildDocUrl,
@@ -14,13 +16,16 @@ import {
 const canvas = document.getElementById("view");
 const stage = document.getElementById("stage");
 const status = document.getElementById("status");
-const overlay = document.getElementById("overlay");
 const shareBanner = document.getElementById("share-banner");
 const empty = document.getElementById("empty");
 const fileInput = document.getElementById("file");
 const btnCopy = document.getElementById("btn-copy-link");
 const btnSave = document.getElementById("btn-save-local");
 const btnRestore = document.getElementById("btn-restore-local");
+const issuesToggle = document.getElementById("issues-toggle");
+const issuesPanel = document.getElementById("issues-panel");
+const issuesList = document.getElementById("issues-list");
+const issuesRole = document.getElementById("issues-role");
 
 /** @type {ReturnType<typeof mountPlayer> | null} */
 let handle = null;
@@ -30,6 +35,8 @@ let currentText = null;
 let currentTitle = "";
 /** @type {ReturnType<typeof parsePlayDocument> | null} */
 let currentParsed = null;
+/** @type {ReturnType<typeof validateDocument> | null} */
+let currentReport = null;
 
 let statusTimer = 0;
 function flashStatus(message) {
@@ -74,20 +81,76 @@ function refreshLocalButton() {
 	}
 }
 
-function showSkipped(skipped) {
-	if (!overlay) return;
-	if (!skipped?.length) {
-		overlay.style.display = "none";
-		overlay.textContent = "";
+function renderIssues(report, { autoOpen = true } = {}) {
+	currentReport = report;
+	if (!issuesPanel || !issuesList) return;
+	issuesList.replaceChildren();
+	const issues = report?.issues || [];
+	const e = report?.errors?.length || 0;
+	const w = report?.warnings?.length || 0;
+	if (issuesRole) issuesRole.textContent = e || w ? `${e}× err · ${w}× warn` : "clean";
+	if (issuesToggle) {
+		if (!issues.length) {
+			issuesToggle.hidden = true;
+			issuesToggle.removeAttribute("data-level");
+		} else {
+			issuesToggle.hidden = false;
+			issuesToggle.textContent = e ? `⚠ ${e + w} issue${e + w === 1 ? "" : "s"}` : `${w} issue${w === 1 ? "" : "s"}`;
+			issuesToggle.dataset.level = e ? "error" : w ? "warn" : "note";
+		}
+	}
+	if (!issues.length) {
+		issuesPanel.hidden = true;
 		return;
 	}
-	overlay.style.display = "block";
-	overlay.textContent = "Skipped keys: " + skipped.join(", ");
+	for (const it of issues) {
+		const li = document.createElement("li");
+		li.className = "rig-issue";
+		li.dataset.level = it.level || "note";
+		const code = document.createElement("span");
+		code.className = "rig-issue-code";
+		code.textContent = it.level || "note";
+		li.append(code, document.createTextNode(it.message));
+		if (it.hint) {
+			const hint = document.createElement("span");
+			hint.className = "rig-issue-hint";
+			hint.textContent = it.hint;
+			li.appendChild(hint);
+		}
+		issuesList.appendChild(li);
+	}
+	if (autoOpen && e + w > 0) {
+		issuesPanel.hidden = false;
+		issuesPanel.classList.remove("collapsed");
+	}
+}
+
+if (issuesPanel) {
+	wirePanelHead(issuesPanel, document.getElementById("issues-head"));
+}
+issuesToggle?.addEventListener("click", () => {
+	if (!issuesPanel) return;
+	issuesPanel.hidden = false;
+	issuesPanel.classList.remove("collapsed");
+});
+
+let lastRuntimeError = null;
+function onRuntimeError(message) {
+	if (message === lastRuntimeError) return;
+	lastRuntimeError = message;
+	const report = currentReport || { ok: true, doc: null, errors: [], warnings: [], notes: [], issues: [] };
+	report.errors = report.errors.filter((e) => e.code !== "runtime");
+	report.errors.unshift({ level: "error", code: "runtime", message: `Lua runtime error: ${message}` });
+	report.issues = [...report.errors, ...report.warnings, ...report.notes];
+	report.ok = false;
+	renderIssues(report);
+	flashStatus(`Runtime error: ${message}`);
 }
 
 function showParsed(parsed, label, sourceText) {
 	handle?.dispose();
-	handle = mountPlayer(canvas, parsed);
+	lastRuntimeError = null;
+	handle = mountPlayer(canvas, parsed, { onError: onRuntimeError });
 	empty.hidden = true;
 	if (typeof sourceText === "string") {
 		currentText = sourceText;
@@ -95,16 +158,38 @@ function showParsed(parsed, label, sourceText) {
 	}
 	currentParsed = parsed;
 	status.textContent = parsed.title || "Untitled";
-	showSkipped(parsed.skipped);
 	document.title = `${parsed.title} · RigPlayer`;
 	refreshLocalButton();
 	void label;
 }
 
 async function loadText(text, label) {
+	const report = validateDocument(text);
+	renderIssues(report);
+
+	if (!report.doc) {
+		status.textContent = report.errors[0]?.message || "Invalid document";
+		empty.hidden = false;
+		return false;
+	}
+
 	try {
 		const parsed = parsePlayDocument(text);
+		// Player's skip list can catch keys validate didn't — keep them visible.
+		if (parsed.skipped?.length) {
+			for (const key of parsed.skipped) {
+				if (report.issues.some((i) => i.key === key)) continue;
+				const w = { level: "warn", code: "skipped", message: `Skipped component key "${key}"`, key };
+				report.warnings.push(w);
+				report.issues.push(w);
+			}
+			renderIssues(report, { autoOpen: false });
+		}
 		showParsed(parsed, label, text);
+		if (report.warnings.length) {
+			const n = report.warnings.length;
+			status.textContent = `${parsed.title || "Untitled"} · ${n} issue${n === 1 ? "" : "s"}`;
+		}
 		return true;
 	} catch (err) {
 		status.textContent = `Load failed: ${err.message || err}`;
@@ -112,7 +197,13 @@ async function loadText(text, label) {
 		empty.hidden = false;
 		handle?.dispose();
 		handle = null;
-		setShareBanner("hard", String(err.message || err));
+		if (!report.errors.length) {
+			const e = { level: "error", code: "parse", message: String(err.message || err) };
+			report.errors.push(e);
+			report.issues = [...report.errors, ...report.warnings, ...report.notes];
+			report.ok = false;
+			renderIssues(report);
+		}
 		return false;
 	}
 }
@@ -121,19 +212,63 @@ async function loadFile(file) {
 	await loadText(await file.text(), file.name);
 }
 
-async function tryFetch(urls) {
+/**
+ * The offline single-file build (dist/rigplayer.html) is opened via file://
+ * when double-clicked, and file:// pages can't fetch() sibling files (null
+ * origin — no CORS to grant). tools/bundle.mjs inlines the example .rig text
+ * here so Examples still work with zero network/filesystem access.
+ * @type {Record<string, string> | undefined}
+ */
+const embeddedExamples = globalThis.__RIGPLAYER_EXAMPLES__;
+
+/**
+ * @returns {{ ok: boolean, attempts: string[] }} `attempts` lists every
+ * candidate URL tried and why it failed (HTTP status or thrown error) — so a
+ * failure is diagnosable instead of a bare "Fetch failed: …".
+ */
+async function tryFetch(urls, name) {
+	if (name && embeddedExamples && Object.prototype.hasOwnProperty.call(embeddedExamples, name)) {
+		await loadText(embeddedExamples[name], name);
+		return { ok: true, attempts: [] };
+	}
+	const attempts = [];
 	for (const url of urls) {
 		try {
 			const r = await fetch(url);
-			if (!r.ok) continue;
+			if (!r.ok) {
+				attempts.push(`${url} — HTTP ${r.status}`);
+				continue;
+			}
 			const text = await r.text();
 			await loadText(text, url);
-			return true;
-		} catch {
-			/* try next */
+			return { ok: true, attempts };
+		} catch (err) {
+			// file:// pages can't fetch() at all — every candidate ends up here
+			// with "Failed to fetch" / a TypeError, which is exactly why we
+			// still surface it below instead of just logging and moving on.
+			attempts.push(`${url} — ${err.message || err}`);
 		}
 	}
-	return false;
+	console.warn("tryFetch: every candidate failed —", attempts);
+	return { ok: false, attempts };
+}
+
+function reportFetchFailure(label, attempts) {
+	const isFileProtocol = location.protocol === "file:";
+	const hint = isFileProtocol
+		? `Opened directly as a local file (file://) — plain web/index.html can't fetch() sibling files from there. Run "npm run serve" and use the printed http://127.0.0.1:<port>/web/ URL, or open dist/rigplayer.html instead (that one has the examples built in). Attempts: ${attempts.join(" · ") || "none"}`
+		: attempts.length
+			? attempts.join(" · ")
+			: "No candidate URL was reachable.";
+	const report = {
+		ok: false,
+		doc: null,
+		errors: [{ level: "error", code: "fetch", message: `Fetch failed: ${label}`, hint }],
+		warnings: [],
+		notes: [],
+	};
+	report.issues = [...report.errors, ...report.warnings, ...report.notes];
+	renderIssues(report);
 }
 
 async function copyShareLink() {
@@ -265,7 +400,8 @@ function srcCandidates(s) {
 	if (/^([a-z]+:)?\/\//i.test(s) || s.startsWith("/")) return [s];
 	return [s, "../" + s];
 }
-const demoUrls = srcCandidates("examples/fantasy-console.rig");
+const defaultDemo = "examples/fantasy-console.rig";
+const demoUrls = srcCandidates(defaultDemo);
 
 if (docParam) {
 	status.textContent = "Decoding ?doc=…";
@@ -292,18 +428,20 @@ if (docParam) {
 	}
 } else if (src) {
 	status.textContent = `Fetching ${src}…`;
-	const ok = await tryFetch(srcCandidates(src));
-	if (!ok) {
+	const result = await tryFetch(srcCandidates(src), src);
+	if (!result.ok) {
 		status.textContent = `Fetch failed: ${src}`;
 		empty.hidden = false;
+		reportFetchFailure(src, result.attempts);
 	} else setShareBanner("ok", "Loaded via ?src= (good for larger documents).");
 } else if (wantLocal) {
 	await restoreLocal();
 } else {
 	status.textContent = "Loading fantasy console…";
-	const ok = await tryFetch(demoUrls);
-	if (!ok) {
+	const result = await tryFetch(demoUrls, defaultDemo);
+	if (!result.ok) {
 		empty.hidden = false;
 		status.textContent = "Drop a Rig document, or Open a file";
+		reportFetchFailure(defaultDemo, result.attempts);
 	}
 }

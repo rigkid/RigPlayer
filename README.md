@@ -10,11 +10,15 @@ Scene sketches without a game loop belong in [RigViewer](https://github.com/rigk
 
 Same open / share shell as RigViewer: drop a `.rig`, File → Open, `?src=`, `?doc=`, `?local=`, `?embed=1`, Copy link, Save local, single-file HTML.
 
+Same validator, too: [`web/validate.mjs`](web/validate.mjs) is ported from RigViewer's — envelope checks, misplaced components, unknown-schema suggestions — with Player's known schemas (`rig.pixel.*`, `rig.media.code`, `rig.input.buttons`) swapped in for Viewer's scene ones. If a document fails to load, an **Issues** button appears in the header instead of a silent failure; click it (or it auto-opens on errors) to see exactly what's wrong and why.
+
 | | |
 |--|--|
 | Live | **https://player.rig.works/** |
 | Fallback | https://rigkid.github.io/RigPlayer/ |
-| Offline | [`dist/rigplayer.html`](dist/rigplayer.html) |
+| Offline | [`dist/rigplayer.html`](dist/rigplayer.html) — double-click, no server needed |
+
+The offline file is truly zero-setup: `file://` pages can't `fetch()` sibling files (null origin, no CORS), so `tools/bundle.mjs` inlines Fantasy console + Jailbreak straight into the HTML — File → Examples and the default demo work with no network or local server. `?src=`/`?doc=`/dropped files still need a server or a reachable URL, same as any browser fetch.
 
 ```bash
 npm run serve

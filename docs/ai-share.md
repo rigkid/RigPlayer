@@ -20,8 +20,9 @@ Budgets match Viewer (`web/share.mjs`): soft **4000** / hard **8000** encoded `?
 
 1. Generate / convert a `.rig` with `rig.pixel.*` + Lua `rig.media.code` (see [port-map](port-map.md)).
 2. Prefer patterns from [examples/](../examples/) (`fantasy-console.rig`, `jailbreak.rig`).
-3. **If small:** Copy link → paste `?doc=` URL.
-4. **If hard (Jailbreak):** host the file and reply with:
+3. **If it doesn't load:** check the **Issues** button in the header — RigPlayer runs the same document validator as RigViewer (`web/validate.mjs`) and shows *why*, not just a blank canvas. Fix envelope errors (missing `rig`, misplaced component keys, no `rig.media.code`) before sharing the link.
+4. **If small:** Copy link → paste `?doc=` URL.
+5. **If hard (Jailbreak):** host the file and reply with:
 
 ```
 https://player.rig.works/?src=https://gist.githubusercontent.com/.../raw/.../cart.rig

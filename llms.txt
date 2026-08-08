@@ -10,6 +10,7 @@
 2. Check what this player actually runs: [docs/port-map.md](docs/port-map.md).
 3. Prefer patterns from [examples/](examples/) (`fantasy-console.rig`, `jailbreak.rig`).
 4. Preview: open the hosted player with a reachable document URL, or paste locally.
+5. Blank canvas / load failure? Check the **Issues** button in the header — [web/validate.mjs](web/validate.mjs) (shared with RigViewer's validator) reports the exact envelope/schema problem instead of failing silently.
 
 ## Preview URLs
 
