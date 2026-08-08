@@ -1,0 +1,15 @@
+{
+  "name": "rigplayer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Zero-setup Rig document player — web (fengari Lua) and desktop (RigKit).",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "vendor:fengari": "node tools/vendor-fengari.mjs",
+    "bundle": "node tools/bundle.mjs",
+    "serve": "node tools/serve.mjs",
+    "test": "node --test tools/test/*.test.mjs",
+    "check": "npm test && npm run bundle"
+  }
+}

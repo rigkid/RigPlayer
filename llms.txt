@@ -1,0 +1,40 @@
+# RigPlayer
+
+> Zero-setup player for [RigWorks](https://github.com/rigkid/RigWorks) documents — JSON in, fantasy-console loop out (web fengari Lua + optional RigKit desktop).
+
+**Viewer presents; Player plays.** RigPlayer runs document Lua; scene sketches belong in [RigViewer](https://github.com/rigkid/RigViewer).
+
+## AI entry
+
+1. Load RigWorks skill first: [generating-rig-documents](https://github.com/rigkid/RigWorks/blob/main/skills/generating-rig-documents/SKILL.md).
+2. Check what this player actually runs: [docs/port-map.md](docs/port-map.md).
+3. Prefer patterns from [examples/](examples/) (`fantasy-console.rig`, `jailbreak.rig`).
+4. Preview: open the hosted player with a reachable document URL, or paste locally.
+
+## Preview URLs
+
+```
+https://player.rig.works/?src=examples/fantasy-console.rig
+https://player.rig.works/?src=examples/jailbreak.rig
+https://player.rig.works/web/?src=examples/fantasy-console.rig
+https://player.rig.works/?src=https://raw.githubusercontent.com/<org>/<repo>/<ref>/path/doc.rig
+https://player.rig.works/?doc=u1.<base64url>   # small carts only (see docs/ai-share.md)
+https://player.rig.works/?local=1
+https://player.rig.works/?embed=1&src=examples/fantasy-console.rig
+```
+
+Hosted site serves the player at `/` and mirrors it under `/web/` (local `npm run serve` uses `/web/`).
+
+Share ladder: [docs/ai-share.md](docs/ai-share.md).
+
+## Docs
+
+- [README.md](README.md) — run web / desktop
+- [docs/port-map.md](docs/port-map.md) — schema + Lua API honesty
+- [docs/ai-share.md](docs/ai-share.md) — generate → open URL
+
+## Tools
+
+- `npm run serve` — local zero-setup player
+- `npm run bundle` — `dist/rigplayer.html` single-file offline
+- Desktop: `cmake -S . -B build -DRIGKIT_DIR=../RigKit`

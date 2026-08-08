@@ -34,11 +34,18 @@ Same JSON document format as other Rig hosts.
 | Lua stdlib | Sandboxed — base / table / string / math / coroutine (no `io`, `os`, `require`) |
 | Full PICO-8 (peek/poke, menuitem, …) | **No** — out of scope for this host |
 
+## Hosts
+
+| Surface | Role |
+|---------|------|
+| **Web** (`web/`, `player.rig.works`) | Zero-setup — same `?src=` / `?doc=` / drop / single-file shell as RigViewer; fengari Lua |
+| **Desktop** (`RigPlayer.exe`) | RigKit + **rigDocumentShell** chrome |
+
 ## Not this host
 
 | Concern | Where |
 |---------|--------|
 | Geometry / 3D / GLSL sketches | [RigViewer](https://github.com/rigkid/RigViewer) |
-| Shared File Open / skipped keys chrome | **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** |
+| Shared desktop File Open / skipped keys | **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** |
 
 When you widen the Lua surface, update this table in the same change.

@@ -2,44 +2,57 @@
 
 **Viewer presents; Player plays.**
 
-RigKit host that **plays** Rig documents (`.rig`) with a fantasy-console loop — palette, tiles, map, and Lua `_init` / `_update` / `_draw`.
+Zero-setup player for [RigWorks](https://github.com/rigkid/RigWorks) documents — fantasy-console loop (palette, tiles, map, Lua `_init` / `_update` / `_draw`).
 
-Desktop chrome (File → Open, skipped keys) comes from **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** — the same pack [RigViewer](https://github.com/rigkid/RigViewer) uses. Scene sketches without a game loop belong in RigViewer.
+Scene sketches without a game loop belong in [RigViewer](https://github.com/rigkid/RigViewer). Desktop chrome (File → Open, skipped keys) shares **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** with Viewer.
 
-## Build
+## Zero-setup (web)
+
+Same open / share shell as RigViewer: drop a `.rig`, File → Open, `?src=`, `?doc=`, `?local=`, `?embed=1`, Copy link, Save local, single-file HTML.
+
+| | |
+|--|--|
+| Live | **https://player.rig.works/** |
+| Fallback | https://rigkid.github.io/RigPlayer/ |
+| Offline | [`dist/rigplayer.html`](dist/rigplayer.html) |
+
+```bash
+npm run serve
+# http://127.0.0.1:8766/web/?src=examples/fantasy-console.rig
+# http://127.0.0.1:8766/web/?src=examples/jailbreak.rig
+```
+
+```bash
+npm run bundle   # → dist/rigplayer.html (+ web/rigplayer.html)
+npm test
+```
+
+Agent share ladder: [docs/ai-share.md](docs/ai-share.md) · discovery: [`llms.txt`](llms.txt).
+
+## Desktop (RigKit)
 
 ```bash
 cmake -S . -B build -DRIGKIT_DIR=../RigKit
 cmake --build build --config Release --target RigPlayer
+build/bin/RigPlayer.exe examples/jailbreak.rig
 ```
 
 Needs sibling [rigDocumentShell](https://github.com/rigkid/rigDocumentShell) at `../rigDocumentShell` or under `RigKit/packs/rigDocumentShell`.
 
-## Run
-
-```bash
-build/bin/RigPlayer.exe examples/fantasy-console.rig
-build/bin/RigPlayer.exe examples/jailbreak.rig
-# or File → Open… (rigDocumentShell)
-```
-
-No path → loads deployed `data/play/fantasy-console.rig`. Relative paths resolve against the current directory (run from the repo root for `examples/…`).
-
-Documents step at a fixed 30 Hz; Lua is sandboxed (no `io` / `os` / `require`). Unknown `rig.*` keys show in the **Skipped keys** window.
+No path → loads deployed `data/play/fantasy-console.rig`.
 
 ## Showcase — Jailbreak
 
-Co-op escape campaign from [PicoForge](https://github.com/GitBruno/PicoForge) (`apps/jailbreak`), converted to `.rig` for this host. Audio (`sfx` / `music`) is a silent no-op; graphics and input run in the fantasy-console subset.
+Co-op escape campaign from [PicoForge](https://github.com/GitBruno/PicoForge) (`apps/jailbreak`). Prefer `?src=` — too large for `?doc=`.
 
 ```bash
+# web
+http://127.0.0.1:8766/web/?src=examples/jailbreak.rig
+# desktop
 build/bin/RigPlayer.exe examples/jailbreak.rig
 ```
 
-Re-convert from the cart when PicoForge updates:
-
-```bash
-node ../PicoForge/p8-to-rig/cli.js ../PicoForge/apps/jailbreak/jailbreak.p8 -o examples/jailbreak.rig
-```
+Audio (`sfx` / `music`) is silent; cartdata is in-memory only.
 
 ## Controls
 
@@ -52,9 +65,26 @@ node ../PicoForge/p8-to-rig/cli.js ../PicoForge/apps/jailbreak/jailbreak.p8 -o e
 ## Docs
 
 - [docs/port-map.md](docs/port-map.md) — schema + Lua API honesty
+- [docs/ai-share.md](docs/ai-share.md) — `?doc=` / `?src=` ladder
+
+## Repo layout
+
+| Path | Role |
+|------|------|
+| `web/` | Hosted fengari player (zero-setup) |
+| `dist/rigplayer.html` | Single-file offline player |
+| `PlayRuntime.*` / `RigPlayerApp.*` | Desktop RigKit host |
+| `examples/` | Specimen `.rig` documents |
+| `docs/` | Port map + AI share |
+
+## Publish / GitHub Pages
+
+1. GitHub → **Settings → Pages → Source: GitHub Actions**.
+2. Custom domain **`player.rig.works`** (CNAME is written by the workflow).
+3. After a green `pages` workflow: site root + `/web/`, `dist/rigplayer.html`, `examples/`, `llms.txt`.
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
 
-Jailbreak demo content is from PicoForge (MIT). PICO-8 is a trademark of Lexaloffle Games.
+Jailbreak demo content is from PicoForge (MIT). PICO-8 is a trademark of Lexaloffle Games. Fengari is MIT — see `web/vendor/LICENSE.fengari.txt`.
