@@ -1,8 +1,8 @@
-# AI share — cart → player URL
+# AI share — document → player URL
 
-Goal: an agent (or human) emits a playable Rig document, then hands the user a link that **plays** it in RigPlayer.
+Goal: an agent (or human) emits a Rig document, then hands the user a link that **opens** it in RigPlayer (full RigWorks host).
 
-**Viewer presents; Player plays.** Geometry / GLSL sketches go to [RigViewer](https://github.com/rigkid/RigViewer). Pixel + Lua documents open here.
+[RigViewer](https://github.com/rigkid/RigViewer) is the light **preview**. Prefer Player links for durable share.
 
 ## Ladder (same contract as RigViewer)
 
@@ -18,14 +18,14 @@ Budgets match Viewer (`web/share.mjs`): soft **4000** / hard **8000** encoded `?
 
 ## What to do as an agent
 
-1. Generate / convert a `.rig` with `rig.pixel.*` + Lua `rig.media.code` (see [port-map](port-map.md)).
-2. Prefer patterns from [examples/](../examples/) (`jailbreak.rig`).
-3. **If it doesn't load:** check the **Issues** button in the header — RigPlayer runs the same document validator as RigViewer (`web/validate.mjs`) and shows *why*, not just a blank canvas. Fix envelope errors (missing `rig`, misplaced component keys, no `rig.media.code`) before sharing the link.
+1. Generate a `.rig` / `.json` with RigWorks schemas (see [port-map](port-map.md)).
+2. Prefer patterns from [examples/](../examples/).
+3. **If it doesn't load:** check the **Issues** button — fix envelope errors before sharing.
 4. **If small:** Copy link → paste `?doc=` URL.
-5. **If hard (Jailbreak):** host the file and reply with:
+5. **If hard:** host the file and reply with:
 
 ```
-https://player.rig.works/?src=https://gist.githubusercontent.com/.../raw/.../cart.rig
+https://player.rig.works/?src=https://gist.githubusercontent.com/.../raw/.../doc.rig
 ```
 
 (`/web/?…` also works on the hosted site and is the local `npm run serve` path.)
@@ -35,9 +35,11 @@ Local preview:
 ```
 npm run serve
 http://127.0.0.1:<port>/web/?src=examples/jailbreak.rig
+http://127.0.0.1:<port>/web/?src=examples/demo-3d.json
+http://127.0.0.1:<port>/web/?src=examples/demo-gleditor.json
 http://127.0.0.1:<port>/web/?doc=u1.<payload>
 http://127.0.0.1:<port>/web/?local=1
-http://127.0.0.1:<port>/web/?embed=1&src=examples/jailbreak.rig
+http://127.0.0.1:<port>/web/?embed=1&src=examples/demo-gleditor.json
 ```
 
 ## Embed
@@ -46,7 +48,7 @@ http://127.0.0.1:<port>/web/?embed=1&src=examples/jailbreak.rig
 
 ```html
 <iframe
-  src="https://player.rig.works/?embed=1&src=examples/jailbreak.rig"
+  src="https://player.rig.works/?embed=1&src=examples/demo-gleditor.json"
   title="RigPlayer"
   style="width:100%;height:420px;border:0;border-radius:8px;background:#0b0d10"
   allow="fullscreen"

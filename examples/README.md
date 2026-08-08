@@ -2,6 +2,8 @@
 
 | Document | Role |
 |----------|------|
-| `jailbreak.rig` | [Jailbreak](https://github.com/GitBruno/PicoForge/tree/main/apps/jailbreak) showcase from PicoForge — default demo |
+| `jailbreak.rig` | Pixel / Lua runtime showcase (default demo) |
+| `demo-3d.json` | Scene present (meshes, lights, camera) — from RigViewer |
+| `demo-gleditor.json` | GLSL + code editor present — from RigViewer |
 
-Deploys next to the exe under `data/play/`.
+Deploy next to the desktop exe under `data/play/`. The offline web host is under `data/web/rigplayer.html`.

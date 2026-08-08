@@ -1,0 +1,172 @@
+{
+  "rig": "0.9.0",
+  "document": {
+    "title": "3D demo",
+    "defaultUnit": "m",
+    "colorSpace": "srgb"
+  },
+  "entities": [
+    {
+      "id": "cam",
+      "components": {
+        "rig.meta.named": { "name": "cam", "stableId": "cam" },
+        "rig.spatial.transform": {
+          "position": [4.2, 2.8, 5.5],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "rig.spatial.camera": {
+          "active": true,
+          "projection": "perspective",
+          "fovYDegrees": 42,
+          "nearClip": 0.1,
+          "farClip": 100
+        }
+      }
+    },
+    {
+      "id": "sun",
+      "components": {
+        "rig.meta.named": { "name": "sun", "stableId": "sun" },
+        "rig.spatial.transform": { "position": [3, 6, 2] },
+        "rig.render.light": {
+          "enabled": true,
+          "type": "directional",
+          "rgb": [1, 0.96, 0.88],
+          "intensity": 1.15,
+          "ambient": 0.28
+        }
+      }
+    },
+    {
+      "id": "fill-light",
+      "components": {
+        "rig.meta.named": { "name": "fill-light", "stableId": "fill-light" },
+        "rig.spatial.transform": { "position": [-4, 2, -1] },
+        "rig.render.light": {
+          "enabled": true,
+          "type": "point",
+          "rgb": [0.45, 0.65, 1],
+          "intensity": 18,
+          "ambient": 0
+        }
+      }
+    },
+    {
+      "id": "ground",
+      "components": {
+        "rig.meta.named": { "name": "ground", "stableId": "ground" },
+        "rig.spatial.transform": { "position": [0, -0.02, 0] },
+        "rig.geometry.mesh": {
+          "mode": "triangles",
+          "positions": [
+            -3, 0, -3, 3, 0, -3, 3, 0, 3, -3, 0, 3
+          ],
+          "indices": [0, 2, 1, 0, 3, 2]
+        },
+        "rig.render.material": {
+          "albedoRgb": [0.18, 0.2, 0.24],
+          "metallic": 0.05,
+          "roughness": 0.92
+        }
+      }
+    },
+    {
+      "id": "box",
+      "components": {
+        "rig.meta.named": { "name": "box", "stableId": "box" },
+        "rig.spatial.transform": { "position": [-1.1, 0.55, 0.2] },
+        "rig.geometry.mesh": {
+          "mode": "triangles",
+          "positions": [
+            -0.55, -0.55, 0.55, 0.55, -0.55, 0.55, 0.55, 0.55, 0.55, -0.55, 0.55, 0.55,
+            -0.55, -0.55, -0.55, -0.55, 0.55, -0.55, 0.55, 0.55, -0.55, 0.55, -0.55, -0.55,
+            -0.55, 0.55, -0.55, -0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, -0.55,
+            -0.55, -0.55, -0.55, 0.55, -0.55, -0.55, 0.55, -0.55, 0.55, -0.55, -0.55, 0.55,
+            0.55, -0.55, -0.55, 0.55, 0.55, -0.55, 0.55, 0.55, 0.55, 0.55, -0.55, 0.55,
+            -0.55, -0.55, -0.55, -0.55, -0.55, 0.55, -0.55, 0.55, 0.55, -0.55, 0.55, -0.55
+          ],
+          "indices": [
+            0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15, 16, 17, 18,
+            16, 18, 19, 20, 21, 22, 20, 22, 23
+          ]
+        },
+        "rig.render.material": {
+          "albedoRgb": [0.25, 0.65, 1],
+          "metallic": 0.15,
+          "roughness": 0.45
+        }
+      }
+    },
+    {
+      "id": "pyramid",
+      "components": {
+        "rig.meta.named": { "name": "pyramid", "stableId": "pyramid" },
+        "rig.spatial.transform": { "position": [0.9, 0, 0.4] },
+        "rig.geometry.mesh": {
+          "mode": "triangles",
+          "positions": [
+            0, 1.35, 0, -0.85, 0, 0.85, 0.85, 0, 0.85, 0.85, 0, -0.85, -0.85, 0, -0.85
+          ],
+          "indices": [0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1, 1, 4, 3, 1, 3, 2]
+        },
+        "rig.render.material": {
+          "albedoRgb": [0.95, 0.55, 0.2],
+          "metallic": 0.05,
+          "roughness": 0.55,
+          "emissive": [0.08, 0.03, 0]
+        }
+      }
+    },
+    {
+      "id": "wedge",
+      "components": {
+        "rig.meta.named": { "name": "wedge", "stableId": "wedge" },
+        "rig.spatial.transform": {
+          "position": [0.1, 0.35, -1.1],
+          "rotation": [0, 0.3827, 0, 0.9239],
+          "scale": [1, 1, 1]
+        },
+        "rig.geometry.mesh": {
+          "mode": "triangles",
+          "positions": [
+            -0.9, -0.35, 0.45, 0.9, -0.35, 0.45, 0.9, -0.35, -0.45, -0.9, -0.35, -0.45, -0.9, 0.55,
+            0.45, 0.9, 0.05, 0.45, 0.9, 0.05, -0.45, -0.9, 0.55, -0.45
+          ],
+          "indices": [
+            0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7, 4, 5, 6, 4, 6, 7, 0,
+            3, 2, 0, 2, 1
+          ]
+        },
+        "rig.render.material": {
+          "albedoRgb": [0.35, 0.85, 0.55],
+          "metallic": 0.2,
+          "roughness": 0.4
+        }
+      }
+    },
+    {
+      "id": "crystal",
+      "components": {
+        "rig.meta.named": { "name": "crystal", "stableId": "crystal" },
+        "rig.spatial.transform": { "position": [-0.15, 1.35, 0.15], "scale": [0.55, 0.7, 0.55] },
+        "rig.geometry.mesh": {
+          "mode": "triangles",
+          "positions": [
+            0, 1, 0, 1, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, -1, 0, -1, 0
+          ],
+          "normals": [
+            0, 1, 0, 1, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, -1, 0, -1, 0
+          ],
+          "indices": [0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1, 5, 2, 1, 5, 3, 2, 5, 4, 3, 5, 1, 4]
+        },
+        "rig.render.material": {
+          "albedoRgb": [0.75, 0.45, 1],
+          "metallic": 0.35,
+          "roughness": 0.25,
+          "emissive": [0.12, 0.04, 0.2]
+        }
+      }
+    }
+  ]
+}

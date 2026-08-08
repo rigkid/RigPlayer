@@ -1,16 +1,16 @@
 # RigPlayer
 
-**Viewer presents; Player plays.**
+**Full RigWorks host** — online (`player.rig.works`) is the special surface; desktop matches.
 
-Zero-setup player for [RigWorks](https://github.com/rigkid/RigWorks) documents — fantasy-console loop (palette, tiles, map, Lua `_init` / `_update` / `_draw`).
+Opens Rig documents end-to-end: pixel/Lua runtime, music, **and** scene/GLSL + code-editor documents. [RigViewer](https://github.com/rigkid/RigViewer) stays the light **preview** host for the same files.
 
-Scene sketches without a game loop belong in [RigViewer](https://github.com/rigkid/RigViewer). Desktop chrome (File → Open, skipped keys) shares **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** with Viewer.
+Desktop chrome (File → Open, skipped keys) shares **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** with Viewer.
 
 ## Zero-setup (web)
 
-Same open / share shell as RigViewer: drop a `.rig`, File → Open, `?src=`, `?doc=`, `?local=`, `?embed=1`, Copy link, Save local, single-file HTML.
+Drop a `.rig` / `.json`, File → Open, `?src=`, `?doc=`, `?local=`, `?embed=1`, Copy link, Save local, single-file HTML.
 
-Same validator, too: [`web/validate.mjs`](web/validate.mjs) is ported from RigViewer's — envelope checks, misplaced components, unknown-schema suggestions — with Player's known schemas (`rig.pixel.*`, `rig.media.code`, `rig.music.*`, `rig.input.buttons`) swapped in for Viewer's scene ones. If a document fails to load, an **Issues** button appears in the header instead of a silent failure; click it (or it auto-opens on errors) to see exactly what's wrong and why.
+Validator ([`web/validate.mjs`](web/validate.mjs)) knows the union of pixel/Lua and scene/GLSL schemas. Failures show in the **Issues** panel.
 
 | | |
 |--|--|
@@ -18,11 +18,13 @@ Same validator, too: [`web/validate.mjs`](web/validate.mjs) is ported from RigVi
 | Fallback | https://rigkid.github.io/RigPlayer/ |
 | Offline | [`dist/rigplayer.html`](dist/rigplayer.html) — double-click, no server needed |
 
-The offline file is truly zero-setup: `file://` pages can't `fetch()` sibling files (null origin, no CORS), so `tools/bundle.mjs` inlines Jailbreak straight into the HTML — File → Examples and the default demo work with no network or local server. `?src=`/`?doc=`/dropped files still need a server or a reachable URL, same as any browser fetch.
+`tools/bundle.mjs` inlines examples (Jailbreak, demo-3d, demo-gleditor) for `file://` offline use.
 
 ```bash
 npm run serve
 # http://127.0.0.1:8766/web/?src=examples/jailbreak.rig
+# http://127.0.0.1:8766/web/?src=examples/demo-3d.json
+# http://127.0.0.1:8766/web/?src=examples/demo-gleditor.json
 ```
 
 ```bash
@@ -35,29 +37,28 @@ Agent share ladder: [docs/ai-share.md](docs/ai-share.md) · discovery: [`llms.tx
 ## Desktop (RigKit)
 
 ```bash
+npm run bundle   # required once — deploys data/web/rigplayer.html for scene/GLSL opens
 cmake -S . -B build -DRIGKIT_DIR=../RigKit
 cmake --build build --config Release --target RigPlayer
 build/bin/RigPlayer.exe examples/jailbreak.rig
+build/bin/RigPlayer.exe examples/demo-3d.json
 ```
 
-Needs sibling [rigDocumentShell](https://github.com/rigkid/rigDocumentShell) at `../rigDocumentShell` or under `RigKit/packs/rigDocumentShell`.
+Pixel/Lua documents run in-process. Scene/GLSL documents open the bundled web host with the file inlined (same present path as online).
 
 No path → loads deployed `data/play/jailbreak.rig`.
 
-## Showcase — Jailbreak
+## Examples
 
-Co-op escape campaign from [PicoForge](https://github.com/GitBruno/PicoForge) (`apps/jailbreak`). Prefer `?src=` — too large for `?doc=`.
+| Document | Path |
+|----------|------|
+| Jailbreak (pixel/Lua) | `examples/jailbreak.rig` |
+| Demo 3D (scene) | `examples/demo-3d.json` |
+| GLSL editor | `examples/demo-gleditor.json` |
 
-```bash
-# web
-http://127.0.0.1:8766/web/?src=examples/jailbreak.rig
-# desktop
-build/bin/RigPlayer.exe examples/jailbreak.rig
-```
+Web audio: `sfx` / `music` from `rig.music.pattern` (click or key once to unlock). Desktop pixel runtime is still silent for audio. `cartdata` is in-memory only.
 
-Web audio plays `sfx` / `music` from `rig.music.pattern` (click or press a key once to unlock the browser audio context). Desktop builds are still silent. Cartdata is in-memory only.
-
-## Controls
+## Controls (pixel/Lua)
 
 | Key | `btn` |
 |-----|-------|
@@ -67,17 +68,18 @@ Web audio plays `sfx` / `music` from `rig.music.pattern` (click or press a key o
 
 ## Docs
 
-- [docs/port-map.md](docs/port-map.md) — schema + Lua API honesty
+- [docs/port-map.md](docs/port-map.md) — schema honesty
 - [docs/ai-share.md](docs/ai-share.md) — `?doc=` / `?src=` ladder
 
 ## Repo layout
 
 | Path | Role |
 |------|------|
-| `web/` | Hosted fengari player (zero-setup) |
-| `dist/rigplayer.html` | Single-file offline player |
+| `web/` | Online host (fengari + Three/GLSL present) |
+| `web/view/` | Scene/GLSL present modules (from RigViewer) |
+| `dist/rigplayer.html` | Single-file offline host |
 | `PlayRuntime.*` / `RigPlayerApp.*` | Desktop RigKit host |
-| `examples/` | Specimen `.rig` documents |
+| `examples/` | Specimen Rig documents |
 | `docs/` | Port map + AI share |
 
 ## Publish / GitHub Pages
@@ -90,4 +92,4 @@ Web audio plays `sfx` / `music` from `rig.music.pattern` (click or press a key o
 
 MIT — see [LICENSE](LICENSE).
 
-Jailbreak demo content is from PicoForge (MIT). PICO-8 is a trademark of Lexaloffle Games. Fengari is MIT — see `web/vendor/LICENSE.fengari.txt`.
+Jailbreak demo content is from PicoForge (MIT). PICO-8 is a trademark of Lexaloffle Games. Fengari is MIT — see `web/vendor/LICENSE.fengari.txt`. Three.js is MIT — see `web/vendor/three.module.js` header.

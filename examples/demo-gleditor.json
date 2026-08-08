@@ -1,0 +1,67 @@
+{
+  "rig": "0.9.0",
+  "document": {
+    "title": "glEditor buffers",
+    "defaultUnit": "px"
+  },
+  "entities": [
+    {
+      "id": "viewer",
+      "components": {
+        "rig.meta.named": { "name": "viewer", "stableId": "viewer" }
+      }
+    },
+    {
+      "id": "gradient",
+      "components": {
+        "rig.meta.named": { "name": "gradient", "stableId": "gradient", "order": 1 },
+        "rig.media.code": {
+          "language": "glsl",
+          "text": "// animated gradient\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n\tvec2 uv = fragCoord / iResolution.xy;\n\tvec3 col = 0.5 + 0.5 * cos(iTime + uv.xyx + vec3(0.0, 2.0, 4.0));\n\tfragColor = vec4(col, 1.0);\n}\n",
+          "readOnly": false
+        }
+      }
+    },
+    {
+      "id": "plasma",
+      "components": {
+        "rig.meta.named": { "name": "plasma", "stableId": "plasma", "order": 0 },
+        "rig.media.code": {
+          "language": "glsl",
+          "text": "// soft plasma\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n\tvec2 uv = fragCoord / iResolution.xy;\n\tfloat t = iTime;\n\tfloat v = sin(uv.x * 10.0 + t);\n\tv += sin(uv.y * 10.0 + t * 1.3);\n\tv += sin((uv.x + uv.y) * 8.0 + t * 0.7);\n\tv += sin(length(uv - 0.5) * 14.0 - t);\n\tv *= 0.25;\n\tvec3 col = 0.5 + 0.5 * cos(3.14159 * v + vec3(0.0, 2.0, 4.0));\n\tfragColor = vec4(col, 1.0);\n}\n",
+          "readOnly": false
+        }
+      }
+    },
+    {
+      "id": "shader-panel",
+      "components": {
+        "rig.meta.named": { "name": "Buffers", "stableId": "shader-panel" },
+        "rig.ui.panel": {
+          "role": "media.code",
+          "order": 0,
+          "visible": true,
+          "preferredWidth": 440,
+          "preferredHeight": 480
+        }
+      }
+    },
+    {
+      "id": "ctrl-buffer",
+      "components": {
+        "rig.meta.named": { "name": "Buffer", "stableId": "ctrl-buffer" },
+        "rig.ui.control": {
+          "panel": "shader-panel",
+          "order": 0,
+          "target": "viewer",
+          "propertyKey": "activeCodeId",
+          "type": "enum",
+          "options": ["gradient", "plasma"],
+          "enabled": true,
+          "readOnly": false,
+          "widget": "dropdown"
+        }
+      }
+    }
+  ]
+}

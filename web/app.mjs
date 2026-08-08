@@ -1,9 +1,10 @@
 /**
- * Page boot for RigPlayer web — same open / share ladder as RigViewer.
+ * Page boot for RigPlayer web — full RigWorks host (pixel/Lua + scene/GLSL).
  */
 import { parsePlayDocument, mountPlayer } from "./play.mjs";
 import { validateDocument } from "./validate.mjs";
-import { wirePanelHead } from "./ui.mjs";
+import { wirePanelHead, mountUiPanels } from "./ui.mjs";
+import { parseDocumentText, mountViewer, documentWantsShaderPreview } from "./view/viewer.mjs";
 import {
 	assessDocSize,
 	buildDocUrl,
@@ -15,6 +16,7 @@ import {
 
 const canvas = document.getElementById("view");
 const stage = document.getElementById("stage");
+const panelsHost = document.getElementById("panels");
 const status = document.getElementById("status");
 const shareBanner = document.getElementById("share-banner");
 const empty = document.getElementById("empty");
@@ -27,16 +29,22 @@ const issuesPanel = document.getElementById("issues-panel");
 const issuesList = document.getElementById("issues-list");
 const issuesRole = document.getElementById("issues-role");
 
-/** @type {ReturnType<typeof mountPlayer> | null} */
+/** @type {{ dispose: () => void } | null} */
 let handle = null;
+/** @type {{ dispose: () => void } | null} */
+let uiHandle = null;
 /** @type {string | null} */
 let currentText = null;
 /** @type {string} */
 let currentTitle = "";
-/** @type {ReturnType<typeof parsePlayDocument> | null} */
+/** @type {{ title?: string } | null} */
 let currentParsed = null;
 /** @type {ReturnType<typeof validateDocument> | null} */
 let currentReport = null;
+/** @type {"play"|"present"|""} */
+let currentMode = "";
+
+const presentPrefs = { shading: "flat", sphereResolution: 24 };
 
 let statusTimer = 0;
 function flashStatus(message) {
@@ -77,7 +85,18 @@ function refreshLocalButton() {
 	const local = loadLocalSketch();
 	btnRestore.hidden = !local;
 	if (local) {
-		btnRestore.title = `Restore “${local.title || "cart"}” (${local.bytes || "?"} bytes)`;
+		btnRestore.title = `Restore “${local.title || "document"}” (${local.bytes || "?"} bytes)`;
+	}
+}
+
+function disposeAll() {
+	uiHandle?.dispose();
+	uiHandle = null;
+	handle?.dispose();
+	handle = null;
+	if (panelsHost) {
+		panelsHost.replaceChildren();
+		panelsHost.classList.remove("code-overlay");
 	}
 }
 
@@ -90,7 +109,7 @@ function renderIssues(report, { autoOpen = true } = {}) {
 	const w = report?.warnings?.length || 0;
 	if (issuesRole) issuesRole.textContent = e || w ? `${e}× err · ${w}× warn` : "clean";
 	if (issuesToggle) {
-		const n = (report?.notes?.length || 0);
+		const n = report?.notes?.length || 0;
 		const serious = e + w;
 		if (!issues.length) {
 			issuesToggle.hidden = true;
@@ -151,9 +170,12 @@ function onRuntimeError(message) {
 	flashStatus(`Runtime error: ${message}`);
 }
 
-function showParsed(parsed, label, sourceText) {
-	handle?.dispose();
+function showPlay(parsed, label, sourceText) {
+	disposeAll();
 	lastRuntimeError = null;
+	currentMode = "play";
+	stage?.classList.remove("mode-present");
+	stage?.classList.add("mode-play");
 	handle = mountPlayer(canvas, parsed, { onError: onRuntimeError });
 	empty.hidden = true;
 	if (typeof sourceText === "string") {
@@ -162,7 +184,33 @@ function showParsed(parsed, label, sourceText) {
 	}
 	currentParsed = parsed;
 	status.textContent = parsed.title || "Untitled";
-	document.title = `${parsed.title} · RigPlayer`;
+	document.title = `${parsed.title || "Untitled"} · RigPlayer`;
+	refreshLocalButton();
+	void label;
+}
+
+function showPresent(parsed, label, sourceText) {
+	disposeAll();
+	lastRuntimeError = null;
+	currentMode = "present";
+	stage?.classList.remove("mode-play");
+	stage?.classList.add("mode-present");
+	handle = mountViewer(canvas, parsed, presentPrefs);
+	if (panelsHost) {
+		panelsHost.classList.toggle("code-overlay", documentWantsShaderPreview(parsed));
+		uiHandle = mountUiPanels(panelsHost, parsed, {
+			getTime: () => handle?.getTime?.() ?? 0,
+			onChange: () => handle?.invalidate?.(),
+		});
+	}
+	empty.hidden = true;
+	if (typeof sourceText === "string") {
+		currentText = sourceText;
+		currentTitle = parsed.title || "";
+	}
+	currentParsed = parsed;
+	status.textContent = parsed.title || "Untitled";
+	document.title = `${parsed.title || "Untitled"} · RigPlayer`;
 	refreshLocalButton();
 	void label;
 }
@@ -177,30 +225,41 @@ async function loadText(text, label) {
 		return false;
 	}
 
+	const mode = report.mode || "none";
+	if (!report.ok) {
+		status.textContent = report.errors[0]?.message || "Invalid document";
+		empty.hidden = false;
+		disposeAll();
+		return false;
+	}
+
 	try {
-		const parsed = parsePlayDocument(text);
-		// Player's skip list can catch keys validate didn't — keep them visible.
-		if (parsed.skipped?.length) {
-			for (const key of parsed.skipped) {
-				if (report.issues.some((i) => i.key === key)) continue;
-				const w = { level: "warn", code: "skipped", message: `Skipped component key "${key}"`, key };
-				report.warnings.push(w);
-				report.issues.push(w);
+		if (mode === "present") {
+			const parsed = parseDocumentText(text);
+			showPresent(parsed, label, text);
+		} else {
+			const parsed = parsePlayDocument(text);
+			if (parsed.skipped?.length) {
+				for (const key of parsed.skipped) {
+					if (report.issues.some((i) => i.key === key)) continue;
+					const w = { level: "warn", code: "skipped", message: `Skipped component key "${key}"`, key };
+					report.warnings.push(w);
+					report.issues.push(w);
+				}
+				renderIssues(report, { autoOpen: false });
 			}
-			renderIssues(report, { autoOpen: false });
+			showPlay(parsed, label, text);
 		}
-		showParsed(parsed, label, text);
 		if (report.warnings.length) {
 			const n = report.warnings.length;
-			status.textContent = `${parsed.title || "Untitled"} · ${n} issue${n === 1 ? "" : "s"}`;
+			status.textContent = `${currentParsed?.title || "Untitled"} · ${n} issue${n === 1 ? "" : "s"}`;
 		}
 		return true;
 	} catch (err) {
 		status.textContent = `Load failed: ${err.message || err}`;
 		console.error(err);
 		empty.hidden = false;
-		handle?.dispose();
-		handle = null;
+		disposeAll();
 		if (!report.errors.length) {
 			const e = { level: "error", code: "parse", message: String(err.message || err) };
 			report.errors.push(e);
@@ -217,19 +276,11 @@ async function loadFile(file) {
 }
 
 /**
- * The offline single-file build (dist/rigplayer.html) is opened via file://
- * when double-clicked, and file:// pages can't fetch() sibling files (null
- * origin — no CORS to grant). tools/bundle.mjs inlines the example .rig text
- * here so Examples still work with zero network/filesystem access.
+ * Offline single-file build inlines example text here (file:// can't fetch).
  * @type {Record<string, string> | undefined}
  */
 const embeddedExamples = globalThis.__RIGPLAYER_EXAMPLES__;
 
-/**
- * @returns {{ ok: boolean, attempts: string[] }} `attempts` lists every
- * candidate URL tried and why it failed (HTTP status or thrown error) — so a
- * failure is diagnosable instead of a bare "Fetch failed: …".
- */
 async function tryFetch(urls, name) {
 	if (name && embeddedExamples && Object.prototype.hasOwnProperty.call(embeddedExamples, name)) {
 		await loadText(embeddedExamples[name], name);
@@ -247,9 +298,6 @@ async function tryFetch(urls, name) {
 			await loadText(text, url);
 			return { ok: true, attempts };
 		} catch (err) {
-			// file:// pages can't fetch() at all — every candidate ends up here
-			// with "Failed to fetch" / a TypeError, which is exactly why we
-			// still surface it below instead of just logging and moving on.
 			attempts.push(`${url} — ${err.message || err}`);
 		}
 	}
@@ -260,7 +308,7 @@ async function tryFetch(urls, name) {
 function reportFetchFailure(label, attempts) {
 	const isFileProtocol = location.protocol === "file:";
 	const hint = isFileProtocol
-		? `Opened directly as a local file (file://) — plain web/index.html can't fetch() sibling files from there. Run "npm run serve" and use the printed http://127.0.0.1:<port>/web/ URL, or open dist/rigplayer.html instead (that one has the examples built in). Attempts: ${attempts.join(" · ") || "none"}`
+		? `Opened as file:// — run "npm run serve" or open dist/rigplayer.html (examples inlined). Attempts: ${attempts.join(" · ") || "none"}`
 		: attempts.length
 			? attempts.join(" · ")
 			: "No candidate URL was reachable.";
@@ -321,14 +369,14 @@ function saveCurrentLocal() {
 async function restoreLocal() {
 	const local = loadLocalSketch();
 	if (!local) {
-		setShareBanner("hard", "No local cart saved.");
+		setShareBanner("hard", "No local document saved.");
 		return;
 	}
 	const ok = await loadText(local.text, "localStorage");
 	if (ok) {
 		setShareBanner(
 			"ok",
-			`Restored local cart (${local.bytes || "?"} bytes). Use Copy link for a ?doc= URL if it still fits.`,
+			`Restored local document (${local.bytes || "?"} bytes). Use Copy link for a ?doc= URL if it still fits.`,
 		);
 	}
 }
@@ -407,7 +455,13 @@ function srcCandidates(s) {
 const defaultDemo = "examples/jailbreak.rig";
 const demoUrls = srcCandidates(defaultDemo);
 
-if (docParam) {
+// Desktop (and tests) can inject a document before boot — full host without fetch.
+const inlineDoc = globalThis.__RIGPLAYER_INLINE_DOC__;
+if (typeof inlineDoc === "string" && inlineDoc.length) {
+	status.textContent = "Loading document…";
+	const ok = await loadText(inlineDoc, "inline");
+	if (!ok) empty.hidden = false;
+} else if (docParam) {
 	status.textContent = "Decoding ?doc=…";
 	try {
 		const text = await decodeDocPayload(docParam);
@@ -449,3 +503,5 @@ if (docParam) {
 		reportFetchFailure(defaultDemo, result.attempts);
 	}
 }
+
+void currentMode;

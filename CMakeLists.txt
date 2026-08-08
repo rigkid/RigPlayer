@@ -73,9 +73,20 @@ if(TARGET RigPlayer)
 	add_custom_command(TARGET RigPlayer POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E make_directory
 				"$<TARGET_FILE_DIR:RigPlayer>/data/play"
+		COMMAND ${CMAKE_COMMAND} -E make_directory
+				"$<TARGET_FILE_DIR:RigPlayer>/data/web"
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 				"${CMAKE_CURRENT_SOURCE_DIR}/examples/jailbreak.rig"
 				"$<TARGET_FILE_DIR:RigPlayer>/data/play/jailbreak.rig"
-		COMMENT "Deploy play documents next to RigPlayer"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/demo-3d.json"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/demo-3d.json"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/demo-gleditor.json"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/demo-gleditor.json"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/dist/rigplayer.html"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/web/rigplayer.html"
+		COMMENT "Deploy Rig documents + web present host next to RigPlayer"
 	)
 endif()

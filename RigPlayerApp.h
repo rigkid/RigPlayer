@@ -19,6 +19,7 @@ class RigPlayerApp : public rigkit::IApp {
 
   private:
 	void loadDocument(const std::string& path);
+	void loadPresentDocument(const std::string& path);
 	void ensurePresent();
 	void destroyPresent();
 	void uploadScreen();
@@ -28,6 +29,7 @@ class RigPlayerApp : public rigkit::IApp {
 	std::string m_docPath;
 	std::string m_pendingPath;
 	std::unique_ptr<PlayRuntime> m_play;
+	bool m_presentMode = false;
 	unsigned int m_tex = 0;
 	unsigned int m_prog = 0;
 	unsigned int m_vao = 0;

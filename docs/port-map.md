@@ -1,52 +1,63 @@
-# Port map — Rig ↔ RigPlayer
+# Port map — RigWorks ↔ RigPlayer
 
-**Viewer presents; Player plays.** This host plays Rig documents (`.rig`) that carry a fantasy-console loop (SUDE + Lua). It is not a scene Viewer.
+**RigPlayer is the full RigWorks host** (online + desktop). [RigViewer](https://github.com/rigkid/RigViewer) is the light **preview** of the same documents.
 
-Same JSON document format as other Rig hosts.
+Same JSON document format as other Rig hosts. Document shape selects the path:
 
-## Document fields (Close)
+- **Pixel/Lua runtime** — `rig.pixel.*` + `rig.media.code` (`lua` / `pico8`)
+- **Scene/GLSL present** — geometry / spatial / render / UI, or `rig.media.code` (`glsl`)
+
+## Pixel / Lua runtime
 
 | Schema | Honesty |
 |--------|---------|
 | `rig.pixel.palette` | 16 colours → runtime palette |
-| `rig.pixel.tile_set` | Sprite sheet RAM |
+| `rig.pixel.tile_set` | Sprite sheet RAM (row-major sheet indices) |
 | `rig.pixel.tile_map` | Map RAM |
 | `rig.pixel.canvas` | Accepted (size assumed 128×128) |
-| `rig.media.code` (`language` lua / pico8) | Game Lua — sugar rewritten to stock Lua before load |
+| `rig.media.code` (`language` lua / pico8) | Lua — sugar rewritten to stock Lua before load |
 | `rig.input.buttons` | Document may declare player 0; runtime drives `btn` / `btnp` from host keyboard |
 | `rig.meta.named` / document title | Window title |
-| `rig.music.transport` / `clock` / `pattern` / `sequencer` | **Web:** Web Audio synth (PICO-8-ish waves 0–7). **Desktop:** still silent |
-| `rig.media.asset_ref` / other `rig.*` | **Skipped** — reported in Issues / Skipped keys |
+| `rig.music.transport` / `clock` / `pattern` / `sequencer` | **Web:** Web Audio synth (waves 0–7). **Desktop pixel path:** silent |
+| `rig.media.asset_ref` | Companion note (metadata only) |
 
-## Lua API (fantasy-console subset)
+### Lua API (pixel runtime)
 
 | API | Status |
 |-----|--------|
-| `_init` / `_update` / `_draw` | Yes — SUDE at a fixed 30 Hz step |
+| `_init` / `_update` / `_draw` | Yes — fixed 30 Hz step |
 | `cls`, `btn`, `btnp`, `spr`, `sspr`, `map`, `print` | Yes (`print` uses a 3×5 pixel font) |
-| `pset` / `pget` / `mget` / `mset` | Yes |
+| `pset` / `pget` / `mget` / `mset` | Yes (fractional coords floored) |
 | `rect` / `rectfill` / `circ` / `circfill` | Yes |
-| `color`, `pal`, `fillp` | Yes (draw remap + optional screen `pal(_,_,1)`) |
-| `flr` / `mid` / `abs` / `min` / `max` / `rnd` / `sin` / `cos` / `sqrt` | Yes (PICO-8 turn-based `sin`/`cos`) |
+| `color`, `pal`, `fillp` | Yes |
+| `flr` / `mid` / `abs` / `min` / `max` / `rnd` / `sin` / `cos` / `sqrt` | Yes |
 | `add` / `del` / `all` / `count` / `split` | Yes |
-| `sfx` / `music` | **Web:** plays `rig.music.pattern` via Web Audio. **Desktop:** accepted no-op (silent) |
-| `cartdata` / `dget` / `dset` | In-memory only (not persisted) |
-| PICO-8 sugar (`!=`, `0b…`, `+=` on names and `a.b` / `a[i]`) | Preprocessed |
-| Lua stdlib | Sandboxed — base / table / string / math / coroutine (no `io`, `os`, `require`) |
-| Full PICO-8 (peek/poke, menuitem, …) | **No** — out of scope for this host |
+| `sfx` / `music` | **Web:** plays `rig.music.pattern`. **Desktop pixel path:** no-op |
+| `cartdata` / `dget` / `dset` | In-memory only |
+| PICO-8 sugar (`!=`, `0b…`, `+=`) | Preprocessed |
+| Lua stdlib | Sandboxed — base / table / string / math / coroutine |
+
+## Scene / GLSL present
+
+| Schema | Honesty |
+|--------|---------|
+| `rig.spatial.*` | Transforms, camera, groups — Three.js present (web) |
+| `rig.geometry.*` | Meshes / primitives |
+| `rig.render.material` / `rig.render.light` | Materials + lights |
+| `rig.mod.lfo` / `rig.mod.binding` | Time-driven bindings |
+| `rig.ui.*` | Panels / controls / actions + code editor |
+| `rig.media.code` (`language` glsl) | WebGL2 shader present (`mainImage` / `iTime` style) |
+
+**Desktop:** scene/GLSL File → Open launches the bundled web host (`data/web/rigplayer.html`) with the document inlined — same present modules as online.
 
 ## Hosts
 
 | Surface | Role |
 |---------|------|
-| **Web** (`web/`, `player.rig.works`) | Zero-setup — same `?src=` / `?doc=` / drop / single-file shell as RigViewer; fengari Lua |
-| **Desktop** (`RigPlayer.exe`) | RigKit + **rigDocumentShell** chrome |
+| **Web** (`player.rig.works`) | Full host — what makes RigPlayer special |
+| **Desktop** (`RigPlayer.exe`) | Pixel/Lua in-process; scene/GLSL via bundled web host |
+| **RigViewer** | Preview only |
 
-## Not this host
+Shared desktop File Open chrome: **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)**.
 
-| Concern | Where |
-|---------|--------|
-| Geometry / 3D / GLSL sketches | [RigViewer](https://github.com/rigkid/RigViewer) |
-| Shared desktop File Open / skipped keys | **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** |
-
-When you widen the Lua surface, update this table in the same change.
+When you widen a surface, update this table in the same change.

@@ -1,15 +1,13 @@
 /**
- * Lightweight Rig document validator — ported from RigViewer's web/validate.mjs
- * so both hosts give the same actionable diagnostics for the same document
- * envelope mistakes (missing "rig", entities shape, misplaced components,
- * dangling refs). Only the known-schema list differs: this host speaks the
- * fantasy-console subset (`rig.pixel.*`, `rig.media.code`, …), not geometry/UI.
+ * Lightweight Rig document validator for RigPlayer — the full RigWorks host.
+ * Envelope checks, misplaced components, unknown-schema suggestions.
+ * Known-schema list is the union of pixel/Lua runtime + scene/GLSL present.
  *
  * Not a full AJV schema pass (see RigWorks rig-validate for that).
  */
 
-/** Schemas this player knows how to run (keep in sync with play.mjs KNOWN). */
-export const PLAYER_KNOWN_KEYS = [
+/** Pixel / music / input runtime schemas (keep in sync with play.mjs KNOWN). */
+export const PLAY_KNOWN_KEYS = [
 	"rig.meta.named",
 	"rig.pixel.canvas",
 	"rig.pixel.palette",
@@ -23,7 +21,61 @@ export const PLAYER_KNOWN_KEYS = [
 	"rig.music.sequencer",
 ];
 
-const KNOWN = new Set(PLAYER_KNOWN_KEYS);
+/** Scene / GLSL / UI present schemas (keep in sync with view/parse.mjs). */
+export const PRESENT_KNOWN_KEYS = [
+	"rig.meta.named",
+	"rig.spatial.transform",
+	"rig.spatial.relationship",
+	"rig.spatial.camera",
+	"rig.spatial.group",
+	"rig.spatial.layer",
+	"rig.render.visibility",
+	"rig.interact.selectable",
+	"rig.paint.fill_stroke",
+	"rig.paint.solid",
+	"rig.geometry.rectangle",
+	"rig.geometry.ellipse",
+	"rig.geometry.line",
+	"rig.geometry.polygon",
+	"rig.geometry.regular_polygon",
+	"rig.geometry.star",
+	"rig.geometry.arc",
+	"rig.geometry.ring",
+	"rig.geometry.path",
+	"rig.geometry.mesh",
+	"rig.geometry.sphere",
+	"rig.mod.lfo",
+	"rig.mod.binding",
+	"rig.ui.panel",
+	"rig.ui.group",
+	"rig.ui.control",
+	"rig.ui.action",
+	"rig.render.material",
+	"rig.render.light",
+	"rig.media.code",
+];
+
+/** @deprecated use PLAY_KNOWN_KEYS — kept for older tests */
+export const PLAYER_KNOWN_KEYS = PLAY_KNOWN_KEYS;
+
+export const PLAYER_HOST_KEYS = [...new Set([...PLAY_KNOWN_KEYS, ...PRESENT_KNOWN_KEYS])];
+
+const KNOWN = new Set(PLAYER_HOST_KEYS);
+const PLAY_SET = new Set(PLAY_KNOWN_KEYS.filter((k) => k !== "rig.meta.named" && k !== "rig.media.code"));
+
+const PRESENT_PREFIXES = [
+	"rig.spatial.",
+	"rig.geometry.",
+	"rig.render.",
+	"rig.paint.",
+	"rig.mod.",
+	"rig.ui.",
+	"rig.interact.",
+];
+
+function isPresentKey(key) {
+	return PRESENT_PREFIXES.some((p) => key.startsWith(p));
+}
 
 /** Common invented / renamed ids → contract suggestion. */
 const ALIASES = {
@@ -36,12 +88,12 @@ const ALIASES = {
 	"rig.script": "rig.media.code",
 	"rig.input": "rig.input.buttons",
 	"rig.buttons": "rig.input.buttons",
-	// Viewer-only schemas are valid Rig, just not runnable here — point at Player's scope doc.
-	"rig.geometry.mesh": "not this host — geometry belongs in RigViewer",
-	"rig.spatial.camera": "not this host — geometry belongs in RigViewer",
+	"rig.geometry.shape": "rig.geometry.mesh (or rig.geometry.sphere)",
+	"rig.material.solid": "rig.render.material",
+	"rig.render.camera": "rig.spatial.camera",
+	"rig.camera": "rig.spatial.camera",
 };
 
-/** Valid Rig keys Player deliberately ignores (no warn spam). */
 const COMPANION = new Set(["rig.media.asset_ref"]);
 
 function issue(level, code, message, extra = {}) {
@@ -72,7 +124,7 @@ function suggestKey(key) {
 	if (ALIASES[key]) return ALIASES[key];
 	let best = null;
 	let bestD = Infinity;
-	for (const k of PLAYER_KNOWN_KEYS) {
+	for (const k of PLAYER_HOST_KEYS) {
 		const d = levenshtein(key, k);
 		if (d < bestD) {
 			bestD = d;
@@ -88,8 +140,38 @@ function looksLikeComponentKey(key) {
 }
 
 /**
+ * Classify a parsed Rig document for the dual-path host.
+ * @returns {"play"|"present"|"none"}
+ */
+export function classifyDocument(doc) {
+	if (!doc || !Array.isArray(doc.entities)) return "none";
+	let hasLua = false;
+	let hasGlsl = false;
+	let playKeys = 0;
+	let presentKeys = 0;
+	for (const e of doc.entities) {
+		const comps = e?.components;
+		if (!comps || typeof comps !== "object") continue;
+		for (const key of Object.keys(comps)) {
+			if (key === "rig.media.code") {
+				const lang = String(comps[key]?.language || "").toLowerCase();
+				if (lang === "lua" || lang === "pico8" || lang === "") hasLua = true;
+				else if (lang === "glsl") hasGlsl = true;
+			}
+			if (PLAY_SET.has(key)) playKeys++;
+			if (isPresentKey(key)) presentKeys++;
+		}
+	}
+	// Prefer pixel/Lua runtime when playable Lua is present.
+	if (hasLua) return "play";
+	if (hasGlsl || presentKeys > 0) return "present";
+	if (playKeys > 0) return "play"; // pixel assets without code — still play path (will error no-code)
+	return "none";
+}
+
+/**
  * @param {string|object} input — JSON text or already-parsed object
- * @returns {{ ok: boolean, doc: object|null, errors: object[], warnings: object[], notes: object[], issues: object[] }}
+ * @returns {{ ok: boolean, doc: object|null, mode: "play"|"present"|"none", errors: object[], warnings: object[], notes: object[], issues: object[] }}
  */
 export function validateDocument(input) {
 	const errors = [];
@@ -102,13 +184,13 @@ export function validateDocument(input) {
 			doc = JSON.parse(input);
 		} catch (err) {
 			errors.push(issue("error", "json", `Invalid JSON — ${err.message || err}`));
-			return finish(errors, warnings, notes, null);
+			return finish(errors, warnings, notes, null, "none");
 		}
 	} else if (input && typeof input === "object") {
 		doc = input;
 	} else {
 		errors.push(issue("error", "type", "Not a Rig document object"));
-		return finish(errors, warnings, notes, null);
+		return finish(errors, warnings, notes, null, "none");
 	}
 
 	if (doc.rig == null) {
@@ -135,7 +217,7 @@ export function validateDocument(input) {
 		errors.push(
 			issue("error", "envelope", 'Missing or invalid "entities" array', { path: "/entities" }),
 		);
-		return finish(errors, warnings, notes, doc);
+		return finish(errors, warnings, notes, doc, "none");
 	}
 
 	if (doc.entities.length === 0) {
@@ -144,7 +226,9 @@ export function validateDocument(input) {
 
 	const ids = new Set();
 	let hasCode = false;
-	let misplacedTotal = 0;
+	let codeLanguage = "";
+	let playKeys = 0;
+	let presentKeys = 0;
 
 	doc.entities.forEach((e, i) => {
 		const path = `/entities/${i}`;
@@ -169,7 +253,6 @@ export function validateDocument(input) {
 			(k) => k !== "id" && k !== "components" && looksLikeComponentKey(k),
 		);
 		if (rootKeys.length) {
-			misplacedTotal += rootKeys.length;
 			errors.push(
 				issue(
 					"error",
@@ -222,7 +305,12 @@ export function validateDocument(input) {
 				continue;
 			}
 			if (KNOWN.has(key)) {
-				if (key === "rig.media.code") hasCode = true;
+				if (key === "rig.media.code") {
+					hasCode = true;
+					codeLanguage = String(comps[key]?.language || "").toLowerCase();
+				}
+				if (PLAY_SET.has(key)) playKeys++;
+				if (isPresentKey(key)) presentKeys++;
 				continue;
 			}
 			if (COMPANION.has(key)) {
@@ -230,7 +318,7 @@ export function validateDocument(input) {
 					issue(
 						"note",
 						"companion",
-						`Companion "${key}" on "${e.id ?? i}" — not used by Player`,
+						`Companion "${key}" on "${e.id ?? i}" — metadata only`,
 						{ path: `${path}/components/${key}`, entity: e.id, key },
 					),
 				);
@@ -242,8 +330,8 @@ export function validateDocument(input) {
 					"warn",
 					"skipped",
 					suggestion
-						? `Skipped component key "${key}" on "${e.id ?? i}" — did you mean ${suggestion}?`
-						: `Skipped component key "${key}" on "${e.id ?? i}" — RigPlayer will not run it`,
+						? `Unknown component key "${key}" on "${e.id ?? i}" — did you mean ${suggestion}?`
+						: `Unknown component key "${key}" on "${e.id ?? i}"`,
 					{
 						path: `${path}/components/${key}`,
 						entity: e.id,
@@ -259,7 +347,7 @@ export function validateDocument(input) {
 			const suggestion = suggestKey(key);
 			if (suggestion) {
 				warnings.push(
-					issue("warn", "skipped", `Also: "${key}" is not a Player schema — try ${suggestion}`, {
+					issue("warn", "skipped", `Also: "${key}" — try ${suggestion}`, {
 						entity: e.id,
 						key,
 						suggestion,
@@ -269,25 +357,52 @@ export function validateDocument(input) {
 		}
 	});
 
-	if (!hasCode && errors.length === 0) {
-		errors.push(
-			issue(
-				"error",
-				"no-code",
-				'No "rig.media.code" found — RigPlayer needs Lua to run. Sketch-only documents belong in RigViewer.',
-				{ hint: "Add an entity with components: { \"rig.media.code\": { language: \"lua\", text: \"…\" } }" },
-			),
-		);
+	const mode = classifyDocument(doc);
+	const isLua = hasCode && (codeLanguage === "lua" || codeLanguage === "pico8" || codeLanguage === "");
+	const isGlsl = hasCode && codeLanguage === "glsl";
+
+	if (errors.length === 0) {
+		if (mode === "play" && !isLua) {
+			errors.push(
+				issue(
+					"error",
+					"no-code",
+					'No playable "rig.media.code" (language lua / pico8) — pixel runtime needs Lua.',
+					{
+						hint: 'Add components: { "rig.media.code": { language: "lua", text: "…" } }',
+					},
+				),
+			);
+		} else if (mode === "none" && !hasCode && presentKeys === 0 && playKeys === 0) {
+			errors.push(
+				issue(
+					"error",
+					"empty",
+					"No runnable RigWorks content — need pixel/Lua schemas or scene/GLSL schemas.",
+					{ hint: "See docs/port-map.md for schemas this host runs." },
+				),
+			);
+		} else if (hasCode && !isLua && !isGlsl) {
+			warnings.push(
+				issue(
+					"warn",
+					"language",
+					`rig.media.code language "${codeLanguage}" is uncommon — expected lua, pico8, or glsl`,
+					{ language: codeLanguage },
+				),
+			);
+		}
 	}
 
-	return finish(errors, warnings, notes, doc);
+	return finish(errors, warnings, notes, doc, mode);
 }
 
-function finish(errors, warnings, notes, doc) {
+function finish(errors, warnings, notes, doc, mode) {
 	const issues = [...errors, ...warnings, ...notes];
 	return {
 		ok: errors.length === 0,
 		doc,
+		mode: mode || "none",
 		errors,
 		warnings,
 		notes,

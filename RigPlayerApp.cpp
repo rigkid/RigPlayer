@@ -1,5 +1,7 @@
 #include "RigPlayerApp.h"
 
+#include "DocKind.h"
+
 #include "core/RigKitEngine.h"
 #include "core/pack/MPack.h"
 #include "core/util/AppPaths.h"
@@ -10,7 +12,19 @@
 #include "packs/rigSystems/src/rigSystems.h"
 #include "rendering/U_gladGlfw.h"
 
+#include <cstdlib>
+#include <fstream>
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
+#include <sstream>
+
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 namespace {
 
@@ -112,11 +126,84 @@ void RigPlayerApp::setup() {
 	}
 	loadDocument(m_pendingPath);
 	m_pendingPath.clear();
-	spdlog::info("RigPlayer ready — Viewer presents; Player plays. File → Open a .rig document.");
+	spdlog::info("RigPlayer ready — full RigWorks host. File → Open a .rig / .json document.");
+}
+
+void RigPlayerApp::loadPresentDocument(const std::string& path) {
+	m_presentMode = true;
+	m_play.reset();
+	m_docPath = path;
+	window().title = "RigPlayer — present (web host)";
+
+	const std::string shellPath = AppPaths::getDataDir() + "/web/rigplayer.html";
+	std::ifstream shellIn(shellPath);
+	if (!shellIn) {
+		spdlog::error("RigPlayer — missing {} (build web bundle / deploy data/web)", shellPath);
+		window().title = "RigPlayer — present host missing";
+		return;
+	}
+	std::ostringstream shellSs;
+	shellSs << shellIn.rdbuf();
+	std::string html = shellSs.str();
+
+	std::ifstream docIn(path);
+	if (!docIn) {
+		spdlog::error("RigPlayer — cannot read {}", path);
+		return;
+	}
+	std::ostringstream docSs;
+	docSs << docIn.rdbuf();
+	const nlohmann::json asJsString = docSs.str();
+	const std::string inject =
+		"<script>globalThis.__RIGPLAYER_INLINE_DOC__=" + asJsString.dump() + ";</script>\n";
+
+	const std::string marker = "<script type=\"module\">";
+	const auto at = html.find(marker);
+	if (at == std::string::npos) {
+		spdlog::error("RigPlayer — rigplayer.html missing module boot marker");
+		return;
+	}
+	html.insert(at, inject);
+
+	const std::string outPath = AppPaths::getDataDir() + "/web/open-present.html";
+	{
+		std::ofstream out(outPath, std::ios::binary);
+		out << html;
+	}
+
+#if defined(_WIN32)
+	const auto rc = reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", outPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
+	if (rc <= 32) {
+		spdlog::error("RigPlayer — ShellExecute failed ({}) for {}", static_cast<long long>(rc), outPath);
+	} else {
+		spdlog::info("RigPlayer — opened present document in web host: {}", path);
+	}
+#else
+	const std::string cmd = "xdg-open \"" + outPath + "\" || open \"" + outPath + "\"";
+	if (std::system(cmd.c_str()) != 0) {
+		spdlog::error("RigPlayer — could not open web host for {}", outPath);
+	} else {
+		spdlog::info("RigPlayer — opened present document in web host: {}", path);
+	}
+#endif
+
+	if (auto* packs = m_engine->getPackManager()) {
+		if (auto shellPack = packs->getPack<rigkit::rigDocumentShell>()) {
+			shellPack->shell().setDocumentTitle("Present (web host)");
+			shellPack->shell().setSkippedKeys({});
+		}
+	}
 }
 
 void RigPlayerApp::loadDocument(const std::string& path) {
 	m_docPath = path;
+	const DocKind kind = classifyRigDocumentFile(path);
+	if (kind == DocKind::Present) {
+		loadPresentDocument(path);
+		return;
+	}
+
+	m_presentMode = false;
 	m_play = std::make_unique<PlayRuntime>();
 	const std::string err = m_play->load(m_docPath);
 	if (!err.empty()) {
@@ -149,10 +236,10 @@ void RigPlayerApp::update(float dt) {
 		loadDocument(m_pendingPath);
 		m_pendingPath.clear();
 	}
-	if (!m_play) {
+	if (!m_play || m_presentMode) {
 		return;
 	}
-	// Fantasy-console pace: fixed 30 Hz steps, capped so a stall cannot spiral.
+	// Pixel runtime: fixed 30 Hz steps, capped so a stall cannot spiral.
 	constexpr float kStep = 1.f / 30.f;
 	constexpr int kMaxSteps = 4;
 	m_tickAccum += dt;
