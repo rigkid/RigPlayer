@@ -55,9 +55,6 @@ export const PRESENT_KNOWN_KEYS = [
 	"rig.media.code",
 ];
 
-/** @deprecated use PLAY_KNOWN_KEYS — kept for older tests */
-export const PLAYER_KNOWN_KEYS = PLAY_KNOWN_KEYS;
-
 export const PLAYER_HOST_KEYS = [...new Set([...PLAY_KNOWN_KEYS, ...PRESENT_KNOWN_KEYS])];
 
 const KNOWN = new Set(PLAYER_HOST_KEYS);

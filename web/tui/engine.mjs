@@ -1,5 +1,5 @@
 /**
- * Immediate-mode character UI (ImTui) — same shape as vFont's browser shell.
+ * Immediate-mode character UI (ImTui) — shared Viewer / Player shell.
  * Layout and hit-testing stay on the integer grid; the host paints cells.
  */
 
@@ -18,6 +18,7 @@ export const C = {
 	menu: [0.78, 0.8, 0.84],
 	live: [0.4, 0.9, 0.55],
 	desk: [0.043, 0.051, 0.063],
+	panel: [0.07, 0.085, 0.1],
 	warn: [0.94, 0.85, 0.66],
 	err: [0.94, 0.71, 0.71],
 };
@@ -40,7 +41,7 @@ export class ImTui {
 	clicked = false;
 	released = false;
 
-	/** @type {{ ch: string, color: Rgb }[]} */
+	/** @type {{ ch: string, color: Rgb, bg?: Rgb | null }[]} */
 	cells = [];
 	active = "";
 	cx = 0;
@@ -87,7 +88,7 @@ export class ImTui {
 		this.content = { x: 0, y: 0, w: cols, h: rows };
 		this.cx = 0;
 		this.cy = 0;
-		this.cells = Array.from({ length: cols * rows }, () => ({ ch: " ", color: C.text }));
+		this.cells = Array.from({ length: cols * rows }, () => ({ ch: " ", color: C.text, bg: null }));
 	}
 
 	finishScreen() {}
@@ -126,9 +127,9 @@ export class ImTui {
 	/**
 	 * @param {{ id: string, label: string, items: { id: string, label: string, disabled?: boolean }[] }[]} menus
 	 */
-	menubar(menus, open, brand = "RigPlayer") {
+	menubar(menus, open, brand = "RigViewer") {
 		const y = 0;
-		for (let x = 0; x < this.cols; x++) this.put(x, y, " ", C.menu);
+		for (let x = 0; x < this.cols; x++) this.put(x, y, " ", C.menu, C.desk);
 		let nextOpen = open;
 		let x = 1;
 		/** @type {{ id: string, x: number, labelW: number }[]} */
@@ -161,6 +162,7 @@ export class ImTui {
 		const px = a.x;
 		const py = 1;
 		this.frame(px, py, panelW, panelH, "");
+		this.clearClient({ x: px + 1, y: py + 1, w: panelW - 2, h: panelH - 2 }, true);
 		for (let i = 0; i < m.items.length; i++) {
 			const it = m.items[i];
 			const iy = py + 1 + i;
@@ -183,7 +185,7 @@ export class ImTui {
 
 	statusbar(left, right) {
 		const y = this.rows - 1;
-		for (let x = 0; x < this.cols; x++) this.put(x, y, " ", C.dim);
+		for (let x = 0; x < this.cols; x++) this.put(x, y, " ", C.dim, C.desk);
 		this.write(1, y, left.slice(0, this.cols - 4), C.text);
 		const r = right.slice(0, Math.max(0, this.cols - 4));
 		this.write(this.cols - r.length - 1, y, r, C.dim);
@@ -198,9 +200,46 @@ export class ImTui {
 		return client;
 	}
 
-	clearClient(client) {
+	/**
+	 * Window chrome with close hit and title-bar drag hit.
+	 * @param {number} x
+	 * @param {number} y
+	 * @param {number} w
+	 * @param {number} h
+	 * @param {string} title
+	 * @param {{ badge?: string, closable?: boolean, opaque?: boolean }} [opts]
+	 */
+	windowEx(x, y, w, h, title, opts = {}) {
+		const badge = opts.badge || "";
+		const closable = opts.closable !== false;
+		this.frame(x, y, w, h, title, "");
+		let closeHot = false;
+		let right = x + w - 1;
+		if (closable && w >= 5) {
+			const cx = x + w - 3;
+			closeHot = this.hovered(cx, y, 3, 1);
+			this.write(cx, y, "[x]", closeHot ? C.hot : C.dim);
+			right = cx;
+		}
+		if (badge) {
+			const tag = ` ${badge} `;
+			const tx = Math.max(x + 2, right - tag.length);
+			this.write(tx, y, tag.slice(0, Math.max(0, right - x - 2)), C.live);
+		}
+		const titleW = Math.max(1, w - (closable ? 5 : 2));
+		const titleHit = this.hovered(x + 1, y, titleW, 1) && !closeHot;
+		const client = { x: x + 1, y: y + 1, w: Math.max(1, w - 2), h: Math.max(0, h - 2) };
+		if (opts.opaque !== false && client.h > 0) this.clearClient(client, true);
+		this.content = client;
+		this.cx = client.x;
+		this.cy = client.y;
+		return { client, closeHot, titleHit };
+	}
+
+	clearClient(client, opaque = false) {
+		const bg = opaque ? C.panel : null;
 		for (let yy = client.y; yy < client.y + client.h; yy++) {
-			for (let xx = client.x; xx < client.x + client.w; xx++) this.put(xx, yy, " ", C.desk);
+			for (let xx = client.x; xx < client.x + client.w; xx++) this.put(xx, yy, " ", C.desk, bg);
 		}
 	}
 
@@ -323,7 +362,14 @@ export class ImTui {
 
 	frame(x, y, w, h, title, badge = "") {
 		const b = this.box;
-		if (w < 2 || h < 2) return;
+		if (w < 2 || h < 1) return;
+		if (h === 1) {
+			for (let i = 0; i < w; i++) this.put(x + i, y, b.h, C.win);
+			this.put(x, y, b.tl, C.win);
+			this.put(x + w - 1, y, b.tr, C.win);
+			if (title) this.write(x + 2, y, ` ${title} `.slice(0, Math.max(0, w - 4)), C.title);
+			return;
+		}
 		for (let i = 0; i < w; i++) {
 			this.put(x + i, y, b.h, C.win);
 			this.put(x + i, y + h - 1, b.h, C.win);
@@ -357,9 +403,14 @@ export class ImTui {
 		for (let i = 0; i < s.length; i++) this.put(x + i, y, s[i], color);
 	}
 
-	put(x, y, ch, color) {
+	put(x, y, ch, color, bg) {
 		if (x < 0 || y < 0 || x >= this.cols || y >= this.rows) return;
-		this.cells[y * this.cols + x] = { ch, color };
+		const prev = this.cells[y * this.cols + x];
+		this.cells[y * this.cols + x] = {
+			ch,
+			color,
+			bg: bg !== undefined ? bg : prev?.bg ?? null,
+		};
 	}
 }
 

@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "vendor:fengari": "node tools/vendor-fengari.mjs",
+    "sync:tui": "node tools/sync-tui.mjs",
     "bundle": "node tools/bundle.mjs",
     "serve": "node tools/serve.mjs",
     "test": "node --test tools/test/*.test.mjs",

@@ -1,16 +1,16 @@
 /**
- * Canvas2D present of an ImTui grid — vFont paints with a live face;
- * RigPlayer uses the host monospace so the player stays zero-install.
+ * Canvas2D present of an ImTui grid.
+ * Shared Viewer / Player host — paints with the host monospace so both stay zero-install.
  */
 
-import { rgbCss } from "./tui.mjs";
+import { rgbCss } from "./engine.mjs";
 
 const FONT =
 	'ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace';
 
 /**
  * @param {CanvasRenderingContext2D} ctx
- * @param {import("./tui.mjs").ImTui} tui
+ * @param {import("./engine.mjs").ImTui} tui
  * @param {number} cssW
  * @param {number} cssH
  * @param {number} dpr
@@ -36,13 +36,18 @@ export function drawTui(ctx, tui, cssW, cssH, dpr) {
 
 	for (let i = 0; i < cells.length; i++) {
 		const cell = cells[i];
-		if (!cell || cell.ch === " ") continue;
+		if (!cell) continue;
 		const col = i % tui.cols;
 		const row = (i / tui.cols) | 0;
 		const x = tui.originX + col * tui.cellW;
-		const y = tui.originY + row * tui.cellH + tui.cellH * 0.52;
+		const y = tui.originY + row * tui.cellH;
+		if (cell.bg) {
+			ctx.fillStyle = rgbCss(cell.bg);
+			ctx.fillRect(x, y, tui.cellW, tui.cellH);
+		}
+		if (!cell.ch || cell.ch === " ") continue;
 		ctx.fillStyle = rgbCss(cell.color);
-		ctx.fillText(cell.ch, x, y);
+		ctx.fillText(cell.ch, x, y + tui.cellH * 0.52);
 	}
 }
 

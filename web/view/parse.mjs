@@ -804,6 +804,9 @@ export function setProperty(state, entityId, propertyKey, value) {
 	return false;
 }
 
+/** Shared `actionId`s this host fulfills — unknown ids stay hidden. */
+export const SUPPORTED_ACTION_IDS = new Set(["lfo.resetPhase"]);
+
 /** Fulfill shared action ids used by examples. */
 export function runAction(state, actionId, timeSec = 0) {
 	if (actionId === "lfo.resetPhase") {

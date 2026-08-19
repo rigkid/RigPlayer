@@ -14,9 +14,20 @@ import {
 	loadLocalSketch,
 	saveLocalSketch,
 } from "./share.mjs";
-import { C, ImTui } from "./tui.mjs";
-import { drawTui, gridMetrics } from "./tui-draw.mjs";
-import { documentHasChrome, drawDocumentControls } from "./tui-panels.mjs";
+import { getProperty, setProperty, runAction, SUPPORTED_ACTION_IDS } from "./view/parse.mjs";
+import {
+	C,
+	ImTui,
+	TuiDock,
+	drawTui,
+	gridMetrics,
+	drawDocumentPanel,
+	drawOrphanControls,
+	WIN,
+	issueColor,
+	viewMenuItems,
+	syncHostWindows,
+} from "./tui/index.mjs";
 
 const tuiCanvas = document.getElementById("tui");
 const view = document.getElementById("view");
@@ -27,6 +38,7 @@ const embed = document.documentElement.classList.contains("embed");
 
 const tuiCtx = tuiCanvas?.getContext("2d");
 const tui = new ImTui();
+const dock = new TuiDock();
 
 /** @type {{ dispose: () => void, invalidate?: () => void, getTime?: () => number } | null} */
 let handle = null;
@@ -45,11 +57,26 @@ const presentPrefs = { shading: "flat", sphereResolution: 24 };
 
 let statusLine = "Ready — drop a .rig / .json";
 let menuOpen = "";
-let docOpen = true;
-let issuesOpen = false;
-let codeOpen = true;
 let banner = "";
 let bannerLevel = "";
+
+function panelAccess() {
+	return {
+		getProperty,
+		setProperty,
+		runAction,
+		supportedActions: SUPPORTED_ACTION_IDS,
+		getTime: () => handle?.getTime?.() ?? 0,
+		onChange: () => handle?.invalidate?.(),
+	};
+}
+
+function remountPresent() {
+	if (currentMode !== "present" || !currentParsed) return;
+	handle?.dispose();
+	handle = mountViewer(view, currentParsed, presentPrefs);
+	lastStageKey = "";
+}
 
 let ptrDown = false;
 let ptrClicked = false;
@@ -149,7 +176,7 @@ function onRuntimeError(message) {
 	report.issues = [...report.errors, ...report.warnings, ...report.notes];
 	report.ok = false;
 	currentReport = report;
-	issuesOpen = true;
+	dock.setVisible(WIN.issues, true);
 	flashStatus(`Runtime error: ${message}`);
 }
 
@@ -179,8 +206,7 @@ function showPresent(parsed, sourceText) {
 	currentParsed = parsed;
 	document.title = `${parsed.title || "Untitled"} · RigPlayer`;
 	flashStatus(parsed.title || "Untitled");
-	codeOpen = (parsed.codes || []).length > 0;
-	docOpen = documentHasChrome(parsed) || (parsed.codes || []).length > 0;
+	dock.setVisible(WIN.code, (parsed.codes || []).length > 0);
 	syncEditor();
 }
 
@@ -189,7 +215,7 @@ async function loadText(text, label) {
 	currentReport = report;
 	const issues = report?.issues || [];
 	const serious = (report?.errors?.length || 0) + (report?.warnings?.length || 0);
-	issuesOpen = serious > 0;
+	dock.setVisible(WIN.issues, serious > 0);
 
 	if (!report.doc) {
 		flashStatus(report.errors[0]?.message || "Invalid document");
@@ -239,7 +265,7 @@ async function loadText(text, label) {
 			report.issues = [...report.errors, ...report.warnings, ...report.notes];
 			report.ok = false;
 			currentReport = report;
-			issuesOpen = true;
+			dock.setVisible(WIN.issues, true);
 		}
 		return false;
 	}
@@ -290,7 +316,7 @@ function reportFetchFailure(label, attempts) {
 		issues: [],
 	};
 	currentReport.issues = [...currentReport.errors];
-	issuesOpen = true;
+	dock.setVisible(WIN.issues, true);
 	flashStatus(`Fetch failed: ${label}`);
 }
 
@@ -372,15 +398,9 @@ function runCmd(cmd) {
 		case "ex-glsl":
 			location.search = "?src=examples/demo-gleditor.json";
 			break;
-		case "toggle-doc":
-			docOpen = !docOpen;
-			break;
-		case "toggle-issues":
-			issuesOpen = !issuesOpen;
-			if (issuesOpen) docOpen = true;
-			break;
-		case "toggle-code":
-			codeOpen = !codeOpen;
+		case "fullscreen":
+			if (document.fullscreenElement) void document.exitFullscreen();
+			else void document.documentElement.requestFullscreen();
 			break;
 		case "about":
 			flashStatus("RigPlayer — full RigWorks host. ImTui chrome; RigKit documents stay live.");
@@ -389,6 +409,7 @@ function runCmd(cmd) {
 			window.open("https://player.rig.works/", "_blank");
 			break;
 		default:
+			if (cmd.startsWith("win:")) dock.toggle(cmd.slice(4));
 			break;
 	}
 }
@@ -475,11 +496,9 @@ function menusForFrame() {
 		{
 			id: "view",
 			label: "View",
-			items: [
-				{ id: "toggle-doc", label: docOpen ? "Hide document" : "Document" },
-				{ id: "toggle-issues", label: issuesOpen ? "Hide issues" : "Issues" },
-				{ id: "toggle-code", label: codeOpen ? "Hide code" : "Code" },
-			],
+			items: viewMenuItems(dock, [
+				{ id: "fullscreen", label: document.fullscreenElement ? "Exit full screen" : "Full screen" },
+			]),
 		},
 		{
 			id: "help",
@@ -492,15 +511,6 @@ function menusForFrame() {
 	];
 }
 
-function issueColor(level) {
-	if (level === "error") return C.err;
-	if (level === "warn") return C.warn;
-	return C.dim;
-}
-
-/**
- * @returns {{ stagePx: {x:number,y:number,w:number,h:number}, codePx: {x:number,y:number,w:number,h:number}|null }}
- */
 function paintHost(now) {
 	const rect = tuiCanvas.getBoundingClientRect();
 	const dpr = Math.min(window.devicePixelRatio || 1, 3);
@@ -509,104 +519,103 @@ function paintHost(now) {
 	tui.beginScreen(m.originX, m.originY, m.cellW, m.cellH, m.cols, m.rows);
 	tui.fillDesk();
 
+	const codes = currentParsed?.codes || [];
+	const hasCodes = codes.length > 0;
+	const issues = currentReport?.issues || [];
+	syncHostWindows(dock, {
+		parsed: currentParsed,
+		report: currentReport,
+		hasCode: hasCodes,
+		showInfo: true,
+		showPrefs: currentMode === "present",
+		stageTitle:
+			currentMode === "present"
+				? documentWantsShaderPreview(currentParsed || {})
+					? "Stage - GLSL"
+					: "Stage - Scene"
+				: currentMode === "play"
+					? "Stage - Play"
+					: "Stage",
+		stageBadge: currentMode ? "LIVE" : "",
+		supportedActions: SUPPORTED_ACTION_IDS,
+	});
+
 	const menus = menusForFrame();
 	const bar = tui.menubar(menus, menuOpen, "RigPlayer");
 	menuOpen = bar.open;
 
-	const workTop = 1;
-	const workH = Math.max(6, m.rows - 2);
-	const codes = currentParsed?.codes || [];
-	const hasCodes = codes.length > 0;
-	const hasDoc = documentHasChrome(currentParsed);
-	const issues = currentReport?.issues || [];
-	const showSide = docOpen && (hasDoc || issues.length > 0 || hasCodes);
-	const showCode = codeOpen && hasCodes;
-	const sideW = showSide ? Math.min(42, Math.max(28, Math.floor(m.cols * 0.34))) : 0;
-	const codeH = showCode ? Math.min(18, Math.max(8, Math.floor(workH * 0.4))) : 0;
-	const stageW = m.cols - sideW;
-	const stageH = workH - codeH;
-
-	const stageClient = tui.window(
-		0,
-		workTop,
-		stageW,
-		stageH,
-		currentMode === "present"
-			? documentWantsShaderPreview(currentParsed || {})
-				? "Stage - GLSL"
-				: "Stage - Scene"
-			: currentMode === "play"
-				? "Stage - Play"
-				: "Stage",
-		currentMode ? "LIVE" : "",
-	);
-	tui.clearClient(stageClient);
-	if (!currentMode) {
-		tui.content = stageClient;
-		tui.cx = stageClient.x;
-		tui.cy = stageClient.y + Math.floor(stageClient.h / 2) - 1;
-		tui.text("Drop a Rig document, or File → Open", C.dim);
-		tui.text("pixel/Lua  ·  scene/GLSL  ·  ImTui host", C.dim);
-	}
+	const work = { x: 0, y: 1, w: m.cols, h: Math.max(6, m.rows - 2) };
+	dock.begin(tui, work, { menuOpen });
 
 	/** @type {{x:number,y:number,w:number,h:number}|null} */
+	let stageClient = null;
+	/** @type {{x:number,y:number,w:number,h:number}|null} */
 	let codePx = null;
-	if (showCode) {
-		const codeClient = tui.window(0, workTop + stageH, stageW, codeH, "Code", "LIVE");
-		if (codes.length > 1 && !menuOpen) {
-			const ids = codes.map((c) => c.id);
-			const cur = currentParsed.activeCodeId || ids[0];
-			const next = tui.choice("buf", "buf", cur, ids);
-			if (next !== cur) {
-				currentParsed.activeCodeId = next;
-				syncEditor();
-				handle?.invalidate?.();
-			}
-			codePx = tui.rectToPixel({
-				x: codeClient.x,
-				y: tui.cy,
-				w: codeClient.w,
-				h: Math.max(1, codeClient.y + codeClient.h - tui.cy),
-			});
-		} else {
-			tui.clearClient(codeClient);
-			codePx = tui.rectToPixel(codeClient);
-		}
-	}
+	const acc = panelAccess();
 
-	if (showSide) {
-		const sideClient = tui.window(stageW, workTop, sideW, workH, "Document", "KIT");
-		if (!menuOpen) {
-			const title = currentParsed?.title || currentTitle || "(no document)";
-			tui.text(title, C.text);
-			tui.text(
-				currentMode ? `${currentMode} · RigKit in the browser` : "RigKit host",
-				C.dim,
-			);
-			if (banner) tui.text(banner.slice(0, sideClient.w), bannerLevel === "hard" ? C.err : C.warn);
-			tui.spacer();
-			drawDocumentControls(tui, currentParsed, {
-				skip: false,
-				getTime: () => handle?.getTime?.() ?? 0,
-				onChange: () => handle?.invalidate?.(),
-			});
-			if (hasCodes) {
-				tui.spacer();
-				if (tui.button("code-toggle", "Code", codeOpen)) codeOpen = !codeOpen;
-				tui.newline();
+	for (const w of dock.viewItems()) {
+		const client = dock.draw(tui, w.id);
+		if (!client) continue;
+		if (w.kind === "stage") {
+			stageClient = client;
+			if (!currentMode) {
+				tui.cy = client.y + Math.floor(client.h / 2) - 1;
+				tui.text("Drop a Rig document, or File → Open", C.dim);
+				tui.text("pixel/Lua  ·  scene/GLSL  ·  ImTui host", C.dim);
 			}
-			if (issues.length) {
-				tui.spacer();
-				issuesOpen = tui.collapse("issues", `Issues (${issues.length})`, issuesOpen);
-				if (issuesOpen) {
-					const max = Math.max(3, tui.content.y + tui.content.h - tui.cy - 1);
-					for (const it of issues.slice(0, max)) {
-						tui.text(`${it.level || "note"}  ${it.message}`, issueColor(it.level));
-					}
+			continue;
+		}
+		if (w.kind === "code" && hasCodes && !codePx) codePx = tui.rectToPixel(client);
+		if (menuOpen) continue;
+		if (w.kind === "info") {
+			tui.text(currentParsed?.title || currentTitle || "(no document)", C.text);
+			tui.text(currentMode ? `${currentMode} · RigKit in the browser` : "RigKit host", C.dim);
+			if (banner) tui.text(banner.slice(0, client.w), bannerLevel === "hard" ? C.err : C.warn);
+			if (currentParsed) {
+				tui.text(`skipped ${currentParsed.skipped?.length ? currentParsed.skipped.join(",") : "none"}`, C.dim);
+			}
+		} else if (w.kind === "prefs") {
+			const shades = ["auto", "flat", "smooth"];
+			const nextShade = tui.choice("shading", "shde", presentPrefs.shading, shades);
+			if (nextShade !== presentPrefs.shading) {
+				presentPrefs.shading = nextShade;
+				remountPresent();
+			}
+			const res = Math.round(tui.slider("sphereseg", "sphr", presentPrefs.sphereResolution, 8, 64, 0));
+			if (res !== presentPrefs.sphereResolution) {
+				presentPrefs.sphereResolution = res;
+				remountPresent();
+			}
+		} else if (w.kind === "doc-panel" && currentParsed) {
+			const panel = (currentParsed.panels || []).find((p) => p.id === w.panelId);
+			if (panel) drawDocumentPanel(tui, currentParsed, panel, acc);
+		} else if (w.kind === "orphan" && currentParsed) {
+			drawOrphanControls(tui, currentParsed, acc);
+		} else if (w.kind === "issues") {
+			if (!issues.length) tui.text("No issues.", C.dim);
+			const max = Math.max(3, client.y + client.h - tui.cy);
+			for (const it of issues.slice(0, max)) {
+				tui.text(`${it.level || "note"}  ${it.message}`, issueColor(it.level, C));
+			}
+		} else if (w.kind === "code" && hasCodes) {
+			if (codes.length > 1) {
+				const ids = codes.map((c) => c.id);
+				const cur = currentParsed.activeCodeId || ids[0];
+				const next = tui.choice("buf", "buf", cur, ids);
+				if (next !== cur) {
+					currentParsed.activeCodeId = next;
+					syncEditor();
+					handle?.invalidate?.();
 				}
+				codePx = tui.rectToPixel({
+					x: client.x,
+					y: tui.cy,
+					w: client.w,
+					h: Math.max(1, client.y + client.h - tui.cy),
+				});
+			} else {
+				codePx = tui.rectToPixel(client);
 			}
-		} else {
-			tui.text("(menu)", C.dim);
 		}
 	}
 
@@ -622,10 +631,13 @@ function paintHost(now) {
 	tui.finishScreen();
 	if (tuiCtx) drawTui(tuiCtx, tui, rect.width, rect.height, dpr);
 
-	tuiCanvas.style.zIndex = menuOpen || tui.activeId ? "5" : "2";
+	const chrome =
+		menuOpen || !!dock.drag || dock.coversChrome(tui.mx, tui.my) || dock.floatsOverStage() || !!tui.activeId;
+	tuiCanvas.style.zIndex = chrome ? "5" : "2";
+	if (view) view.style.pointerEvents = chrome ? "none" : "auto";
 
-	let stagePx = tui.rectToPixel(stageClient);
-	if (currentMode === "play") {
+	let stagePx = stageClient ? tui.rectToPixel(stageClient) : null;
+	if (stagePx && currentMode === "play") {
 		const side = Math.min(stagePx.w, stagePx.h);
 		stagePx = {
 			x: stagePx.x + Math.floor((stagePx.w - side) / 2),
@@ -643,7 +655,7 @@ function frameLoop(now) {
 
 	if (!embed && tuiCanvas && tuiCtx) {
 		const { stagePx, codePx } = paintHost(now);
-		if (currentMode) {
+		if (currentMode && stagePx) {
 			placeRect(view, stagePx, {
 				imageRendering: currentMode === "play" ? "pixelated" : "auto",
 			});
@@ -656,7 +668,7 @@ function frameLoop(now) {
 		} else {
 			view.hidden = true;
 		}
-		if (codePx && codeOpen && (currentParsed?.codes || []).length) {
+		if (codePx && dock.get(WIN.code)?.visible && (currentParsed?.codes || []).length) {
 			codeHost.hidden = false;
 			placeRect(codeHost, codePx);
 		} else if (codeHost) {

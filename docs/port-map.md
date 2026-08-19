@@ -45,7 +45,7 @@ Same JSON document format as other Rig hosts. Document shape selects the path:
 | `rig.geometry.*` | Meshes / primitives |
 | `rig.render.material` / `rig.render.light` | Materials + lights |
 | `rig.mod.lfo` / `rig.mod.binding` | Time-driven bindings |
-| `rig.ui.*` | Panels / controls / actions + code editor — **ImTui** widgets (web IMui fulfillment) |
+| `rig.ui.*` | **ImTui** fulfillment (shared `web/tui` with RigViewer). Each `rig.ui.panel` is its own dockable window (drag title, snap left / right / bottom, `[x]` / View). Controls write `target` + `propertyKey`. Groups honor `collapsed`. Unknown `actionId`s hidden (`lfo.resetPhase` yes). Widget hints: slider / toggle / dropdown / color; `knob` → slider; `xy` when the value is an array. `preferredWidth` / `preferredHeight` ignored. Code is a dockable window, not a second store. |
 | `rig.media.code` (`language` glsl) | WebGL2 shader present (`mainImage` / `iTime` style) |
 
 **Desktop:** scene/GLSL File → Open launches the bundled web host (`data/web/rigplayer.html`) with the document inlined — same present modules as online.

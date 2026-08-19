@@ -31,9 +31,12 @@ const playSrc = read("play.mjs");
 const audioSrc = read("audio.mjs");
 const shareSrc = read("share.mjs");
 const validateSrc = read("validate.mjs");
-const tuiSrc = read("tui.mjs");
-const tuiDrawSrc = read("tui-draw.mjs");
-const tuiPanelsSrc = read("tui-panels.mjs");
+const tuiEngineSrc = read("tui/engine.mjs");
+const tuiDrawSrc = read("tui/draw.mjs");
+const tuiDockSrc = read("tui/dock.mjs");
+const tuiPanelsSrc = read("tui/panels.mjs");
+const tuiHostSrc = read("tui/host.mjs");
+const tuiIndexSrc = read("tui/index.mjs");
 const viewParseSrc = read("view/parse.mjs");
 const viewShaderSrc = read("view/shader.mjs");
 const viewEditorSrc = read("view/editor.mjs");
@@ -67,13 +70,21 @@ const viewViewerBody = ${JSON.stringify(viewViewerSrc)}
 	.replace(/from ["']\\.\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`)
 	.replace(/from ["']\\.\\/shader\\.mjs["']/, \`from "\${viewShaderUrl}"\`);
 const viewViewerUrl = URL.createObjectURL(new Blob([viewViewerBody], { type: "text/javascript" }));
-const tuiUrl = URL.createObjectURL(new Blob([${JSON.stringify(tuiSrc)}], { type: "text/javascript" }));
-const tuiDrawBody = ${JSON.stringify(tuiDrawSrc)}.replace(/from ["']\\.\\/tui\\.mjs["']/, \`from "\${tuiUrl}"\`);
+const tuiEngineUrl = URL.createObjectURL(new Blob([${JSON.stringify(tuiEngineSrc)}], { type: "text/javascript" }));
+const tuiDrawBody = ${JSON.stringify(tuiDrawSrc)}.replace(/from ["']\\.\\/engine\\.mjs["']/, \`from "\${tuiEngineUrl}"\`);
 const tuiDrawUrl = URL.createObjectURL(new Blob([tuiDrawBody], { type: "text/javascript" }));
-const tuiPanelsBody = ${JSON.stringify(tuiPanelsSrc)}
-	.replace(/from ["']\\.\\/tui\\.mjs["']/, \`from "\${tuiUrl}"\`)
-	.replace(/from ["']\\.\\/view\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`);
+const tuiDockUrl = URL.createObjectURL(new Blob([${JSON.stringify(tuiDockSrc)}], { type: "text/javascript" }));
+const tuiPanelsBody = ${JSON.stringify(tuiPanelsSrc)}.replace(/from ["']\\.\\/engine\\.mjs["']/, \`from "\${tuiEngineUrl}"\`);
 const tuiPanelsUrl = URL.createObjectURL(new Blob([tuiPanelsBody], { type: "text/javascript" }));
+const tuiHostBody = ${JSON.stringify(tuiHostSrc)}.replace(/from ["']\\.\\/panels\\.mjs["']/, \`from "\${tuiPanelsUrl}"\`);
+const tuiHostUrl = URL.createObjectURL(new Blob([tuiHostBody], { type: "text/javascript" }));
+const tuiIndexBody = ${JSON.stringify(tuiIndexSrc)}
+	.replace(/from ["']\\.\\/engine\\.mjs["']/, \`from "\${tuiEngineUrl}"\`)
+	.replace(/from ["']\\.\\/draw\\.mjs["']/, \`from "\${tuiDrawUrl}"\`)
+	.replace(/from ["']\\.\\/dock\\.mjs["']/, \`from "\${tuiDockUrl}"\`)
+	.replace(/from ["']\\.\\/panels\\.mjs["']/, \`from "\${tuiPanelsUrl}"\`)
+	.replace(/from ["']\\.\\/host\\.mjs["']/, \`from "\${tuiHostUrl}"\`);
+const tuiUrl = URL.createObjectURL(new Blob([tuiIndexBody], { type: "text/javascript" }));
 const playBody = ${JSON.stringify(playSrc)}.replace(/from ["']\\.\\/audio\\.mjs["']/, \`from "\${audioUrl}"\`);
 const playUrl = URL.createObjectURL(new Blob([playBody], { type: "text/javascript" }));
 const validateUrl = URL.createObjectURL(new Blob([${JSON.stringify(validateSrc)}], { type: "text/javascript" }));
@@ -81,9 +92,8 @@ const appBody = ${JSON.stringify(appSrc)}
 	.replace(/from ["']\\.\\/play\\.mjs["']/, \`from "\${playUrl}"\`)
 	.replace(/from ["']\\.\\/share\\.mjs["']/, \`from "\${shareUrl}"\`)
 	.replace(/from ["']\\.\\/validate\\.mjs["']/, \`from "\${validateUrl}"\`)
-	.replace(/from ["']\\.\\/tui\\.mjs["']/, \`from "\${tuiUrl}"\`)
-	.replace(/from ["']\\.\\/tui-draw\\.mjs["']/, \`from "\${tuiDrawUrl}"\`)
-	.replace(/from ["']\\.\\/tui-panels\\.mjs["']/, \`from "\${tuiPanelsUrl}"\`)
+	.replace(/from ["']\\.\\/tui\\/index\\.mjs["']/, \`from "\${tuiUrl}"\`)
+	.replace(/from ["']\\.\\/view\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`)
 	.replace(/from ["']\\.\\/view\\/viewer\\.mjs["']/, \`from "\${viewViewerUrl}"\`)
 	.replace(/from ["']\\.\\/view\\/editor\\.mjs["']/, \`from "\${viewEditorUrl}"\`);
 const appUrl = URL.createObjectURL(new Blob([appBody], { type: "text/javascript" }));

@@ -1,5 +1,5 @@
 /**
- * ImTui host — grid widgets + document-panel fulfillment (no WebGL).
+ * Shared ImTui host (vendored from RigViewer) — widgets, dock, document panels.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -8,16 +8,28 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const { ImTui, C } = await import(pathToFileURL(path.join(root, "web/tui.mjs")));
-const { gridMetrics } = await import(pathToFileURL(path.join(root, "web/tui-draw.mjs")));
-const { documentHasChrome, drawDocumentControls } = await import(
-	pathToFileURL(path.join(root, "web/tui-panels.mjs"))
+const {
+	ImTui,
+	C,
+	TuiDock,
+	gridMetrics,
+	documentHasChrome,
+	drawDocumentControls,
+	syncHostWindows,
+	viewMenuItems,
+	WIN,
+} = await import(pathToFileURL(path.join(root, "web/tui/index.mjs")));
+const { parseDocumentText, getProperty, setProperty, runAction, SUPPORTED_ACTION_IDS } = await import(
+	pathToFileURL(path.join(root, "web/view/parse.mjs"))
 );
-const { parseDocumentText } = await import(pathToFileURL(path.join(root, "web/view/parse.mjs")));
 
 function boot(tui, cols = 80, rows = 24) {
 	tui.beginScreen(0, 0, 8, 16, cols, rows);
 	tui.fillDesk();
+}
+
+function accessors() {
+	return { getProperty, setProperty, runAction, supportedActions: SUPPORTED_ACTION_IDS, onChange: () => {} };
 }
 
 test("gridMetrics fills a typical viewport", () => {
@@ -34,8 +46,7 @@ test("ImTui button click + slider drag", () => {
 	const client = tui.window(0, 0, 40, 12, "Test");
 	assert.equal(client.x, 1);
 	tui.setPointer(tui.originX + 2 * tui.cellW, tui.originY + 1 * tui.cellH, true, true, false);
-	const first = tui.button("go", "Go");
-	assert.equal(first, false);
+	assert.equal(tui.button("go", "Go"), false);
 	assert.equal(tui.activeId, "go");
 	tui.setPointer(tui.originX + 2 * tui.cellW, tui.originY + 1 * tui.cellH, false, false, true);
 	tui.cx = client.x;
@@ -45,35 +56,75 @@ test("ImTui button click + slider drag", () => {
 	boot(tui);
 	tui.window(0, 0, 40, 8, "Sliders");
 	tui.setPointer(tui.originX + 20 * tui.cellW, tui.originY + 1 * tui.cellH, true, true, false);
-	const v = tui.slider("ax", "wght", 0, 0, 100);
-	assert.ok(v > 0);
+	assert.ok(tui.slider("ax", "wght", 0, 0, 100) > 0);
 });
 
 test("menubar opens a dropdown command", () => {
 	const tui = new ImTui();
 	boot(tui, 80, 20);
-	const menus = [
-		{ id: "file", label: "File", items: [{ id: "open", label: "Open..." }] },
-	];
+	const menus = [{ id: "file", label: "File", items: [{ id: "open", label: "Open..." }] }];
 	const brand = "RigPlayer";
 	const x = 1 + brand.length + 2;
-	tui.setPointer(tui.originX + (x + 2) * tui.cellW, tui.originY + 0 * tui.cellH, true, true, false);
+	tui.setPointer(tui.originX + (x + 2) * tui.cellW, tui.originY, true, true, false);
 	const bar = tui.menubar(menus, "", brand);
 	assert.equal(bar.open, "file");
 	tui.setPointer(tui.originX + (x + 2) * tui.cellW, tui.originY + 2 * tui.cellH, true, true, false);
-	const drop = tui.menuDropdown(menus, "file", bar.anchors);
-	assert.equal(drop.cmd, "open");
+	assert.equal(tui.menuDropdown(menus, "file", bar.anchors).cmd, "open");
 });
 
 test("demo-gleditor document chrome draws without throwing", () => {
-	const text = fs.readFileSync(path.join(root, "examples/demo-gleditor.json"), "utf8");
-	const parsed = parseDocumentText(text);
-	assert.ok(documentHasChrome(parsed) || (parsed.codes || []).length > 0);
+	const parsed = parseDocumentText(fs.readFileSync(path.join(root, "examples/demo-gleditor.json"), "utf8"));
+	assert.ok(documentHasChrome(parsed, SUPPORTED_ACTION_IDS) || (parsed.codes || []).length > 0);
 	const tui = new ImTui();
 	boot(tui, 40, 30);
 	tui.window(0, 0, 40, 30, "Document");
-	drawDocumentControls(tui, parsed, { onChange: () => {} });
-	const ink = tui.visible().filter((c) => c.ch !== " ").length;
-	assert.ok(ink > 20, "expected panel glyphs");
+	drawDocumentControls(tui, parsed, accessors());
+	assert.ok(tui.visible().filter((c) => c.ch !== " ").length > 20);
 	assert.ok(C.live);
+});
+
+test("unknown actionId is hidden; lfo.resetPhase is shown", () => {
+	const tui = new ImTui();
+	boot(tui, 40, 16);
+	tui.window(0, 0, 40, 16, "Document");
+	drawDocumentControls(
+		tui,
+		{
+			panels: [{ id: "p", name: "Tool", visible: true, role: "mod.lfo" }],
+			groups: [],
+			controls: [],
+			actions: [
+				{ id: "a1", panel: "p", group: null, order: 0, actionId: "lfo.resetPhase", name: "Reset" },
+				{ id: "a2", panel: "p", group: null, order: 1, actionId: "host.private", name: "Secret" },
+			],
+		},
+		accessors(),
+	);
+	const text = tui
+		.visible()
+		.map((c) => c.ch)
+		.join("");
+	assert.match(text, /Reset/);
+	assert.doesNotMatch(text, /Secret/);
+});
+
+test("dock View menu lists document panels", () => {
+	const dock = new TuiDock();
+	syncHostWindows(dock, {
+		parsed: {
+			panels: [{ id: "tool", name: "Tool", visible: true, role: "mod.lfo" }],
+			controls: [],
+			actions: [],
+			groups: [],
+		},
+		report: { issues: [] },
+		hasCode: true,
+		showInfo: true,
+		showPrefs: true,
+		supportedActions: SUPPORTED_ACTION_IDS,
+	});
+	const labels = viewMenuItems(dock).map((it) => it.label);
+	assert.ok(labels.some((l) => l.includes("Tool")));
+	assert.ok(labels.some((l) => l.includes("Code")));
+	assert.ok(dock.get(WIN.stage));
 });
