@@ -45,7 +45,7 @@ Same JSON document format as other Rig hosts. Document shape selects the path:
 | `rig.geometry.*` | Meshes / primitives |
 | `rig.render.material` / `rig.render.light` | Materials + lights |
 | `rig.mod.lfo` / `rig.mod.binding` | Time-driven bindings |
-| `rig.ui.*` | Panels / controls / actions + code editor |
+| `rig.ui.*` | Panels / controls / actions + code editor — **ImTui** widgets (web IMui fulfillment) |
 | `rig.media.code` (`language` glsl) | WebGL2 shader present (`mainImage` / `iTime` style) |
 
 **Desktop:** scene/GLSL File → Open launches the bundled web host (`data/web/rigplayer.html`) with the document inlined — same present modules as online.
@@ -54,7 +54,7 @@ Same JSON document format as other Rig hosts. Document shape selects the path:
 
 | Surface | Role |
 |---------|------|
-| **Web** (`player.rig.works`) | Full host — what makes RigPlayer special |
+| **Web** (`player.rig.works`) | Full host — ImTui chrome, same document loop (what makes RigPlayer special) |
 | **Desktop** (`RigPlayer.exe`) | Pixel/Lua in-process; scene/GLSL via bundled web host |
 | **RigViewer** | Preview only |
 

@@ -20,7 +20,7 @@ Budgets match Viewer (`web/share.mjs`): soft **4000** / hard **8000** encoded `?
 
 1. Generate a `.rig` / `.json` with RigWorks schemas (see [port-map](port-map.md)).
 2. Prefer patterns from [examples/](../examples/).
-3. **If it doesn't load:** check the **Issues** button — fix envelope errors before sharing.
+3. **If it doesn't load:** open **View → Issues** (Document panel) — fix envelope errors before sharing.
 4. **If small:** Copy link → paste `?doc=` URL.
 5. **If hard:** host the file and reply with:
 

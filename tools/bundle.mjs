@@ -31,8 +31,9 @@ const playSrc = read("play.mjs");
 const audioSrc = read("audio.mjs");
 const shareSrc = read("share.mjs");
 const validateSrc = read("validate.mjs");
-const uiSrc = read("ui.mjs");
-const viewUiSrc = read("view/ui.mjs");
+const tuiSrc = read("tui.mjs");
+const tuiDrawSrc = read("tui-draw.mjs");
+const tuiPanelsSrc = read("tui-panels.mjs");
 const viewParseSrc = read("view/parse.mjs");
 const viewShaderSrc = read("view/shader.mjs");
 const viewEditorSrc = read("view/editor.mjs");
@@ -66,12 +67,13 @@ const viewViewerBody = ${JSON.stringify(viewViewerSrc)}
 	.replace(/from ["']\\.\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`)
 	.replace(/from ["']\\.\\/shader\\.mjs["']/, \`from "\${viewShaderUrl}"\`);
 const viewViewerUrl = URL.createObjectURL(new Blob([viewViewerBody], { type: "text/javascript" }));
-const viewUiBody = ${JSON.stringify(viewUiSrc)}
-	.replace(/from ["']\\.\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`)
-	.replace(/from ["']\\.\\/editor\\.mjs["']/, \`from "\${viewEditorUrl}"\`);
-const viewUiUrl = URL.createObjectURL(new Blob([viewUiBody], { type: "text/javascript" }));
-const uiBody = ${JSON.stringify(uiSrc)}.replace(/from ["']\\.\\/view\\/ui\\.mjs["']/, \`from "\${viewUiUrl}"\`);
-const uiUrl = URL.createObjectURL(new Blob([uiBody], { type: "text/javascript" }));
+const tuiUrl = URL.createObjectURL(new Blob([${JSON.stringify(tuiSrc)}], { type: "text/javascript" }));
+const tuiDrawBody = ${JSON.stringify(tuiDrawSrc)}.replace(/from ["']\\.\\/tui\\.mjs["']/, \`from "\${tuiUrl}"\`);
+const tuiDrawUrl = URL.createObjectURL(new Blob([tuiDrawBody], { type: "text/javascript" }));
+const tuiPanelsBody = ${JSON.stringify(tuiPanelsSrc)}
+	.replace(/from ["']\\.\\/tui\\.mjs["']/, \`from "\${tuiUrl}"\`)
+	.replace(/from ["']\\.\\/view\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`);
+const tuiPanelsUrl = URL.createObjectURL(new Blob([tuiPanelsBody], { type: "text/javascript" }));
 const playBody = ${JSON.stringify(playSrc)}.replace(/from ["']\\.\\/audio\\.mjs["']/, \`from "\${audioUrl}"\`);
 const playUrl = URL.createObjectURL(new Blob([playBody], { type: "text/javascript" }));
 const validateUrl = URL.createObjectURL(new Blob([${JSON.stringify(validateSrc)}], { type: "text/javascript" }));
@@ -79,8 +81,11 @@ const appBody = ${JSON.stringify(appSrc)}
 	.replace(/from ["']\\.\\/play\\.mjs["']/, \`from "\${playUrl}"\`)
 	.replace(/from ["']\\.\\/share\\.mjs["']/, \`from "\${shareUrl}"\`)
 	.replace(/from ["']\\.\\/validate\\.mjs["']/, \`from "\${validateUrl}"\`)
-	.replace(/from ["']\\.\\/ui\\.mjs["']/, \`from "\${uiUrl}"\`)
-	.replace(/from ["']\\.\\/view\\/viewer\\.mjs["']/, \`from "\${viewViewerUrl}"\`);
+	.replace(/from ["']\\.\\/tui\\.mjs["']/, \`from "\${tuiUrl}"\`)
+	.replace(/from ["']\\.\\/tui-draw\\.mjs["']/, \`from "\${tuiDrawUrl}"\`)
+	.replace(/from ["']\\.\\/tui-panels\\.mjs["']/, \`from "\${tuiPanelsUrl}"\`)
+	.replace(/from ["']\\.\\/view\\/viewer\\.mjs["']/, \`from "\${viewViewerUrl}"\`)
+	.replace(/from ["']\\.\\/view\\/editor\\.mjs["']/, \`from "\${viewEditorUrl}"\`);
 const appUrl = URL.createObjectURL(new Blob([appBody], { type: "text/javascript" }));
 await import(appUrl);
 `;

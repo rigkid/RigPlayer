@@ -1,6 +1,6 @@
 # RigPlayer
 
-> Full RigWorks host — online at [player.rig.works](https://player.rig.works/) (special surface); desktop matches. [RigViewer](https://github.com/rigkid/RigViewer) is the light preview.
+> Full RigWorks host — online at [player.rig.works](https://player.rig.works/) (special surface); desktop matches. Browser chrome is ImTui (vFont-shaped). [RigViewer](https://github.com/rigkid/RigViewer) is the light preview.
 
 ## AI entry
 

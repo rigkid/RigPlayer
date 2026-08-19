@@ -1,5 +1,5 @@
 /**
- * Panel chrome — re-exports Viewer's full ui (wirePanelHead + mountUiPanels)
- * so Issues and document panels share one implementation.
+ * HTML fulfillment of document panels (legacy).
+ * The live host paints the same map with ImTui (`tui-panels.mjs`).
  */
 export { wirePanelHead, mountUiPanels } from "./view/ui.mjs";

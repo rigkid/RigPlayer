@@ -4,4 +4,4 @@
 |-----|------|
 | [port-map.md](port-map.md) | What this Player supports (document schemas + Lua subset) |
 
-**Viewer presents; Player plays.** [RigViewer](https://github.com/rigkid/RigViewer) for sketches; this host plays `.rig` documents.
+**Viewer presents; Player plays.** [RigViewer](https://github.com/rigkid/RigViewer) for sketches; this host plays `.rig` documents. Web chrome is ImTui — RigKit documents in the browser, character-grid IMui.

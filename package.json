@@ -2,7 +2,7 @@
   "name": "rigplayer",
   "private": true,
   "version": "0.1.0",
-  "description": "Zero-setup Rig document player — web (fengari Lua) and desktop (RigKit).",
+	"description": "Zero-setup Rig document player — web ImTui host (fengari Lua + scene/GLSL) and desktop RigKit.",
   "license": "MIT",
   "type": "module",
   "scripts": {

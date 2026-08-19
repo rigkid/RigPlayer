@@ -379,6 +379,7 @@ export function mountViewer(canvas, parsed, prefs = {}) {
 	// camera aspect never drift from the CSS size (which reads as stretching).
 	const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(onResize) : null;
 	ro?.observe(canvas.parentElement || canvas);
+	ro?.observe(canvas);
 
 	const hasMods = (parsed.lfos?.length || 0) > 0;
 	const t0 = performance.now();
