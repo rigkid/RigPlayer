@@ -20,7 +20,7 @@ const {
 	WIN,
 	windowEdgeHit,
 	RESIZE_CURSOR,
-} = await import(pathToFileURL(path.join(root, "web/tui/index.mjs")));
+} = await import(pathToFileURL(path.join(root, "web/imtui/index.mjs")));
 const { parseDocumentText, getProperty, setProperty, runAction, SUPPORTED_ACTION_IDS } = await import(
 	pathToFileURL(path.join(root, "web/view/parse.mjs"))
 );
@@ -220,4 +220,27 @@ test("dock View menu lists document panels", () => {
 	assert.ok(labels.some((l) => l.includes("Tool")));
 	assert.ok(labels.some((l) => l.includes("Code")));
 	assert.ok(dock.get(WIN.stage));
+});
+
+test("View menu items toggle windows; Issues starts closed; play Code stays closed", () => {
+	const dock = new TuiDock();
+	syncHostWindows(dock, {
+		parsed: { panels: [], controls: [], actions: [], groups: [] },
+		report: { issues: [] },
+		hasCode: true,
+		codeVisible: false,
+		showInfo: true,
+		showPrefs: true,
+		supportedActions: SUPPORTED_ACTION_IDS,
+	});
+	const items = viewMenuItems(dock);
+	assert.ok(items.every((it) => it.id.startsWith("win:")));
+	assert.equal(dock.get(WIN.issues)?.visible, false);
+	assert.equal(dock.get(WIN.code)?.visible, false);
+	dock.toggle(WIN.issues);
+	assert.equal(dock.get(WIN.issues)?.visible, true);
+	dock.toggle("panel:missing");
+	assert.equal(dock.get(WIN.prefs)?.visible, false);
+	dock.toggle(WIN.prefs);
+	assert.equal(dock.get(WIN.prefs)?.visible, true);
 });

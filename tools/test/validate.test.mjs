@@ -26,6 +26,13 @@ test("demo-3d.json validates clean as present mode", () => {
 	assert.ok(!r.warnings.some((w) => w.code === "skipped" && w.key?.startsWith("rig.geometry.")));
 });
 
+test("portable-tool.json validates clean as present mode", () => {
+	const text = fs.readFileSync(path.join(root, "examples/portable-tool.json"), "utf8");
+	const r = validateDocument(text);
+	assert.equal(r.ok, true, r.errors.map((e) => e.message).join("; "));
+	assert.equal(r.mode, "present");
+});
+
 test("demo-gleditor.json validates clean as present mode", () => {
 	const text = fs.readFileSync(path.join(root, "examples/demo-gleditor.json"), "utf8");
 	const r = validateDocument(text);

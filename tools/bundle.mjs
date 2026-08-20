@@ -31,12 +31,12 @@ const playSrc = read("play.mjs");
 const audioSrc = read("audio.mjs");
 const shareSrc = read("share.mjs");
 const validateSrc = read("validate.mjs");
-const tuiEngineSrc = read("tui/engine.mjs");
-const tuiDrawSrc = read("tui/draw.mjs");
-const tuiDockSrc = read("tui/dock.mjs");
-const tuiPanelsSrc = read("tui/panels.mjs");
-const tuiHostSrc = read("tui/host.mjs");
-const tuiIndexSrc = read("tui/index.mjs");
+const tuiEngineSrc = read("imtui/engine.mjs");
+const tuiDrawSrc = read("imtui/draw.mjs");
+const tuiDockSrc = read("imtui/dock.mjs");
+const tuiPanelsSrc = read("imtui/panels.mjs");
+const tuiHostSrc = read("imtui/host.mjs");
+const tuiIndexSrc = read("imtui/index.mjs");
 const viewParseSrc = read("view/parse.mjs");
 const viewShaderSrc = read("view/shader.mjs");
 const viewEditorSrc = read("view/editor.mjs");
@@ -44,7 +44,13 @@ const viewViewerSrc = read("view/viewer.mjs");
 const appSrc = read("app.mjs");
 const indexHtml = read("index.html");
 
-const EXAMPLE_NAMES = ["jailbreak.rig", "demo-3d.json", "demo-gleditor.json"];
+const EXAMPLE_NAMES = [
+	"jailbreak.rig",
+	"demo-3d.json",
+	"demo-gleditor.json",
+	"portable-tool.json",
+	"ui-panel.json",
+];
 const examples = {};
 for (const name of EXAMPLE_NAMES) {
 	examples[`examples/${name}`] = fs.readFileSync(path.join(examplesDir, name), "utf8");

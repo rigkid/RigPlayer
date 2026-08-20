@@ -1,12 +1,12 @@
 # RigPlayer
 
-> Full RigWorks host — online at [player.rig.works](https://player.rig.works/) (special surface); desktop matches. Browser chrome is the shared ImTui dock (`web/tui`, from RigViewer). [RigViewer](https://github.com/rigkid/RigViewer) is the light preview.
+> Full RigWorks host — online at [player.rig.works](https://player.rig.works/) (special surface); desktop matches. Browser chrome is the shared ImTui dock (`web/imtui`, from RigViewer). [RigViewer](https://github.com/rigkid/RigViewer) is the light preview.
 
 ## AI entry
 
 1. Load RigWorks skill first: [generating-rig-documents](https://github.com/rigkid/RigWorks/blob/main/skills/generating-rig-documents/SKILL.md).
 2. Check what this host runs: [docs/port-map.md](docs/port-map.md).
-3. Prefer patterns from [examples/](examples/) (`jailbreak.rig`, `demo-3d.json`, `demo-gleditor.json`).
+3. Prefer patterns from [examples/](examples/) (`jailbreak.rig`, `demo-3d.json`, `demo-gleditor.json`, `portable-tool.json`, `ui-panel.json`).
 4. Open on the hosted player with a reachable document URL, or paste locally.
 5. Blank canvas / load failure? Check the **Issues** button — [web/validate.mjs](web/validate.mjs) reports envelope/schema problems.
 
@@ -17,6 +17,8 @@ https://player.rig.works/
 https://player.rig.works/?src=examples/jailbreak.rig
 https://player.rig.works/?src=examples/demo-3d.json
 https://player.rig.works/?src=examples/demo-gleditor.json
+https://player.rig.works/?src=examples/portable-tool.json
+https://player.rig.works/?src=examples/ui-panel.json
 https://player.rig.works/web/?src=examples/jailbreak.rig
 https://player.rig.works/?src=https://raw.githubusercontent.com/<org>/<repo>/<ref>/path/doc.rig
 https://player.rig.works/?doc=u1.<base64url>   # small documents only (see docs/ai-share.md)

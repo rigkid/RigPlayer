@@ -158,7 +158,10 @@ export class TuiDock {
 		const left = vis((w) => w.dock === "left");
 		const right = vis((w) => w.dock === "right");
 		const bottom = vis((w) => w.dock === "bottom");
-		const center = vis((w) => w.dock === "center" || w.kind === "stage");
+		const bookCenter = vis((w) => w.kind === "book" && w.dock === "center");
+		const center = bookCenter.length
+			? bookCenter
+			: vis((w) => w.dock === "center" || w.kind === "stage");
 
 		const slotW = (list) =>
 			list.length ? clamp(Math.max(...list.map((w) => w.w), 28), 20, Math.floor(work.w * 0.42)) : 0;
@@ -231,6 +234,7 @@ export class TuiDock {
 		if (nearLeft && !nearRight) w.dock = "left";
 		else if (nearRight) w.dock = "right";
 		else if (nearBottom && !nearTop) w.dock = "bottom";
+		else if (w.kind === "book" && !nearLeft && !nearRight && !nearBottom) w.dock = "center";
 		else w.dock = "float";
 	}
 

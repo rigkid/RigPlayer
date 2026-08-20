@@ -27,7 +27,7 @@ import {
 	issueColor,
 	viewMenuItems,
 	syncHostWindows,
-} from "./tui/index.mjs";
+} from "./imtui/index.mjs";
 
 const tuiCanvas = document.getElementById("tui");
 const view = document.getElementById("view");
@@ -189,9 +189,15 @@ function showPlay(parsed, sourceText) {
 		currentText = sourceText;
 		currentTitle = parsed.title || "";
 	}
-	currentParsed = parsed;
+	currentParsed = {
+		...parsed,
+		codes: parsed.lua
+			? [{ id: "lua", language: "lua", text: parsed.lua, readOnly: true }]
+			: [],
+	};
 	document.title = `${parsed.title || "Untitled"} · RigPlayer`;
 	flashStatus(parsed.title || "Untitled");
+	syncEditor();
 }
 
 function showPresent(parsed, sourceText) {
@@ -398,15 +404,21 @@ function runCmd(cmd) {
 		case "ex-glsl":
 			location.search = "?src=examples/demo-gleditor.json";
 			break;
+		case "ex-tool":
+			location.search = "?src=examples/portable-tool.json";
+			break;
+		case "ex-ui":
+			location.search = "?src=examples/ui-panel.json";
+			break;
 		case "fullscreen":
 			if (document.fullscreenElement) void document.exitFullscreen();
 			else void document.documentElement.requestFullscreen();
 			break;
 		case "about":
-			flashStatus("RigPlayer — full RigWorks host. ImTui chrome; RigKit documents stay live.");
+			dock.setVisible("about", true);
 			break;
 		case "site":
-			window.open("https://player.rig.works/", "_blank");
+			window.open("https://rig.works/", "_blank");
 			break;
 		default:
 			if (cmd.startsWith("win:")) dock.toggle(cmd.slice(4));
@@ -481,7 +493,6 @@ function menusForFrame() {
 				{ id: "copy-link", label: "Copy link" },
 				{ id: "save-local", label: "Save local" },
 				{ id: "restore-local", label: "Restore local", disabled: !hasLocal },
-				{ id: "single", label: "Single-file HTML" },
 			],
 		},
 		{
@@ -491,6 +502,8 @@ function menusForFrame() {
 				{ id: "ex-jailbreak", label: "Jailbreak" },
 				{ id: "ex-3d", label: "Demo 3D" },
 				{ id: "ex-glsl", label: "GLSL editor" },
+				{ id: "ex-tool", label: "Portable tool" },
+				{ id: "ex-ui", label: "LED panel" },
 			],
 		},
 		{
@@ -505,7 +518,8 @@ function menusForFrame() {
 			label: "Help",
 			items: [
 				{ id: "about", label: "About RigPlayer" },
-				{ id: "site", label: "player.rig.works..." },
+				{ id: "site", label: "RigWorks..." },
+				{ id: "single", label: "Single-file HTML" },
 			],
 		},
 	];
@@ -522,10 +536,12 @@ function paintHost(now) {
 	const codes = currentParsed?.codes || [];
 	const hasCodes = codes.length > 0;
 	const issues = currentReport?.issues || [];
+	const aboutWas = dock.get("about")?.visible ?? false;
 	syncHostWindows(dock, {
 		parsed: currentParsed,
 		report: currentReport,
 		hasCode: hasCodes,
+		codeVisible: currentMode === "present",
 		showInfo: true,
 		showPrefs: currentMode === "present",
 		stageTitle:
@@ -538,6 +554,14 @@ function paintHost(now) {
 					: "Stage",
 		stageBadge: currentMode ? "LIVE" : "",
 		supportedActions: SUPPORTED_ACTION_IDS,
+	});
+	dock.define("about", {
+		title: "About",
+		dock: "float",
+		w: 46,
+		h: 16,
+		kind: "about",
+		visible: aboutWas,
 	});
 
 	const menus = menusForFrame();
@@ -591,6 +615,12 @@ function paintHost(now) {
 			if (panel) drawDocumentPanel(tui, currentParsed, panel, acc);
 		} else if (w.kind === "orphan" && currentParsed) {
 			drawOrphanControls(tui, currentParsed, acc);
+		} else if (w.kind === "about") {
+			tui.text("RigPlayer", C.live);
+			tui.text("Full RigWorks host — documents play and present.", C.text);
+			tui.text("Viewer presents. Player plays.", C.dim);
+			tui.text("ImTui chrome. Same .rig in another app, UI included.", C.dim);
+			tui.text("rig.works", C.hot);
 		} else if (w.kind === "issues") {
 			if (!issues.length) tui.text("No issues.", C.dim);
 			const max = Math.max(3, client.y + client.h - tui.cy);

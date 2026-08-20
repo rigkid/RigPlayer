@@ -15,5 +15,7 @@ test("pages workflow copies .rig and .json examples", () => {
 	assert.match(yml, /cp examples\/\*\.rig _site\/examples\//);
 	assert.match(yml, /cp examples\/\*\.json _site\/examples\//);
 	assert.match(yml, /test -f _site\/examples\/demo-3d\.json/);
+	assert.match(yml, /test -f _site\/examples\/demo-gleditor\.json/);
+	assert.match(yml, /test -f _site\/examples\/portable-tool\.json/);
 	assert.doesNotMatch(yml, /cp examples\/\*\.json[^\\n]*\|\| true/);
 });

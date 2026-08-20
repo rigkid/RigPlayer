@@ -49,6 +49,8 @@ jobs:
           test -f _site/examples/jailbreak.rig
           test -f _site/examples/demo-3d.json
           test -f _site/examples/demo-gleditor.json
+          test -f _site/examples/portable-tool.json
+          test -f _site/examples/ui-panel.json
           cp llms.txt _site/llms.txt
           cp docs/port-map.md docs/ai-share.md _site/docs/
           printf 'player.rig.works\n' > _site/CNAME

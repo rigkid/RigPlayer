@@ -2,7 +2,7 @@
 
 **Full RigWorks host** — online (`player.rig.works`) is the special surface; desktop matches.
 
-Opens Rig documents end-to-end: pixel/Lua runtime, music, **and** scene/GLSL + code-editor documents. Browser chrome is **ImTui** — the same dockable window shell as [RigViewer](https://github.com/rigkid/RigViewer) (`web/tui/`, vendored from Viewer). Drag a title to dock left / right / bottom; close with `[x]`; reopen from **View**. That is the web **IMui** fulfillment: RigKit documents run in the page; the toolkit is the grid, not DOM cards.
+Opens Rig documents end-to-end: pixel/Lua runtime, music, **and** scene/GLSL + code-editor documents. Browser chrome is **ImTui** — the same dockable window shell as [RigViewer](https://github.com/rigkid/RigViewer) (`web/imtui/`, vendored from Viewer). Drag a title to dock left / right / bottom; close with `[x]`; reopen from **View**. That is the web **IMui** fulfillment: RigKit documents run in the page; the toolkit is the grid, not DOM cards.
 
 Desktop chrome (File → Open, skipped keys) shares **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** with Viewer.
 
@@ -76,7 +76,7 @@ Web audio: `sfx` / `music` from `rig.music.pattern` (click or key once to unlock
 | Path | Role |
 |------|------|
 | `web/` | Online host (ImTui + fengari + Three/GLSL present) |
-| `web/tui/` | Shared ImTui host (vendored from RigViewer — `npm run sync:tui`) |
+| `web/imtui/` | Shared ImTui host (vendored from RigViewer — `npm run sync:tui`) |
 | `web/view/` | Scene/GLSL present modules (from RigViewer) |
 | `dist/rigplayer.html` | Single-file offline host |
 | `PlayRuntime.*` / `RigPlayerApp.*` | Desktop RigKit host |

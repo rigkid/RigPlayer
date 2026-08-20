@@ -12,6 +12,7 @@ export const WIN = {
 	issues: "issues",
 	code: "code",
 	document: "document",
+	book: "book",
 };
 
 export function panelWinId(panelId) {
@@ -44,11 +45,15 @@ export function syncHostWindows(dock, spec) {
 		parsed,
 		report,
 		hasCode = false,
+		codeVisible = true,
 		showInfo = false,
 		showPrefs = false,
 		stageTitle = "Stage",
 		stageBadge = "",
 		supportedActions = new Set(),
+		hasStory = false,
+		storyOnly = false,
+		storyTitle = "Book",
 	} = spec;
 
 	dock.define(WIN.stage, {
@@ -104,11 +109,32 @@ export function syncHostWindows(dock, spec) {
 		w: 34,
 		h: 12,
 		kind: "issues",
+		visible: false,
 	});
 
 	if (hasCode) {
 		keep.push(WIN.code);
-		dock.define(WIN.code, { title: "Code", badge: "LIVE", dock: "bottom", w: 60, h: 12, kind: "code" });
+		dock.define(WIN.code, {
+			title: "Code",
+			badge: "LIVE",
+			dock: "bottom",
+			w: 60,
+			h: 12,
+			kind: "code",
+			visible: codeVisible,
+		});
+	}
+
+	if (hasStory) {
+		keep.push(WIN.book);
+		dock.define(WIN.book, {
+			title: storyTitle,
+			badge: "LIVE",
+			dock: storyOnly ? "center" : "left",
+			w: 52,
+			h: 28,
+			kind: "book",
+		});
 	}
 
 	dock.retain(keep);

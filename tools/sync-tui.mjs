@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const src = path.resolve(root, "../RigViewer/web/tui");
-const dest = path.join(root, "web", "tui");
+const dest = path.join(root, "web", "imtui");
 
 if (!fs.existsSync(src)) {
 	console.error("Need sibling checkout: ../RigViewer/web/tui");
@@ -17,4 +17,4 @@ if (!fs.existsSync(src)) {
 }
 fs.rmSync(dest, { recursive: true, force: true });
 fs.cpSync(src, dest, { recursive: true });
-console.log("synced web/tui from RigViewer");
+console.log("synced web/imtui from RigViewer");

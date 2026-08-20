@@ -24,3 +24,16 @@ test("parse demo-gleditor.json yields glsl code buffers", () => {
 	const glsl = (parsed.codes || []).filter((c) => c.language === "glsl");
 	assert.ok(glsl.length > 0, "expected glsl rig.media.code");
 });
+
+test("portable-tool.json yields a document panel", () => {
+	const text = fs.readFileSync(path.join(root, "examples/portable-tool.json"), "utf8");
+	const parsed = parseDocumentText(text);
+	assert.ok((parsed.panels || []).some((p) => p.id === "lfo-tool"));
+	assert.ok((parsed.controls || []).length >= 3);
+});
+
+test("ui-panel.json yields an install panel", () => {
+	const text = fs.readFileSync(path.join(root, "examples/ui-panel.json"), "utf8");
+	const parsed = parseDocumentText(text);
+	assert.ok((parsed.panels || []).some((p) => p.role === "led.install"));
+});
