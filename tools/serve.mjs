@@ -49,8 +49,9 @@ function listen(port, attemptsLeft) {
 	const onListening = () => {
 		server.off("error", onError);
 		console.log(`listening http://127.0.0.1:${port}/web/`);
-		console.log(`demo     http://127.0.0.1:${port}/web/?src=examples/jailbreak.rig`);
 		console.log(`jailbreak http://127.0.0.1:${port}/web/?src=examples/jailbreak.rig`);
+		console.log(`demo-3d   http://127.0.0.1:${port}/web/?src=examples/demo-3d.json`);
+		console.log(`gleditor  http://127.0.0.1:${port}/web/?src=examples/demo-gleditor.json`);
 	};
 	server.once("error", onError);
 	server.once("listening", onListening);

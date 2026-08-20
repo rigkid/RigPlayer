@@ -38,12 +38,21 @@ jobs:
           cp dist/rigplayer.html _site/dist/rigplayer.html
           cp dist/rigplayer.html _site/rigplayer.html
           cp dist/rigplayer.html _site/web/rigplayer.html
-          cp examples/*.rig _site/examples/ 2>/dev/null || true
+          # Both pixel carts (*.rig) and scene/GLSL specimens (*.json).
+          # Swallowing a missing glob hid demo-3d.json / demo-gleditor.json
+          # from player.rig.works — ?src=examples/demo-3d.json 404'd.
+          cp examples/*.rig _site/examples/
+          cp examples/*.json _site/examples/
           mkdir -p _site/web/examples
-          cp examples/*.rig _site/web/examples/ 2>/dev/null || true
+          cp examples/*.rig _site/web/examples/
+          cp examples/*.json _site/web/examples/
+          test -f _site/examples/jailbreak.rig
+          test -f _site/examples/demo-3d.json
+          test -f _site/examples/demo-gleditor.json
           cp llms.txt _site/llms.txt
           cp docs/port-map.md docs/ai-share.md _site/docs/
           printf 'player.rig.works\n' > _site/CNAME
+          touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
