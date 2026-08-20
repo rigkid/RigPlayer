@@ -1,7 +1,7 @@
 /**
  * Shared ImTui host — RigViewer is the source of truth; RigPlayer vendors this folder.
  */
-export { C, BOX_ASCII, BOX_UNICODE, ImTui, rgbCss } from "./engine.mjs";
+export { C, BOX_ASCII, BOX_UNICODE, ImTui, rgbCss, RESIZE_CURSOR, windowEdgeHit } from "./engine.mjs";
 export { drawTui, gridMetrics } from "./draw.mjs";
 export { TuiDock } from "./dock.mjs";
 export {

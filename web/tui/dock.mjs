@@ -1,7 +1,10 @@
 /**
- * Dockable ImTui windows — drag the title, snap to left / right / bottom, close, reopen.
- * Stage stays the center well; other windows share the leftover slots or float.
+ * Dockable ImTui windows — drag the title, resize from borders, snap to
+ * left / right / bottom, close, reopen. Stage stays the center well; other
+ * windows share the leftover slots or float.
  */
+
+import { RESIZE_CURSOR } from "./engine.mjs";
 
 function clamp(n, lo, hi) {
 	return Math.max(lo, Math.min(hi, n));
@@ -21,6 +24,7 @@ export class TuiDock {
 		this.work = { x: 0, y: 1, w: 80, h: 38 };
 		this.menuLock = false;
 		this.snap = 2;
+		this.hoverEdge = "";
 	}
 
 	/**
@@ -135,11 +139,18 @@ export class TuiDock {
 		);
 	}
 
+	resizeCursor() {
+		const edge = this.drag?.type === "resize" ? this.drag.edge : this.hoverEdge;
+		return RESIZE_CURSOR[edge] || "";
+	}
+
 	begin(tui, work, { menuOpen = false } = {}) {
 		this.work = work;
 		this.menuLock = !!menuOpen;
+		this.hoverEdge = "";
 		this.layout(work);
 		this.stepDrag(tui, work);
+		if (this.drag?.type === "resize") this.layout(work);
 	}
 
 	layout(work) {
@@ -180,10 +191,11 @@ export class TuiDock {
 	stack(list, slot) {
 		if (!list.length || slot.w < 4) return;
 		const open = list.filter((w) => !w.collapsed);
-		const collapsed = list.filter((w) => w.collapsed);
-		const reserved = collapsed.length;
+		const reserved = list.filter((w) => w.collapsed).length;
 		const body = Math.max(3, slot.h - reserved);
-		const each = open.length ? Math.max(4, Math.floor(body / open.length)) : 0;
+		const weights = open.map((w) => Math.max(4, w.h));
+		const sum = weights.reduce((a, b) => a + b, 0) || 1;
+		let rest = body;
 		let y = slot.y;
 		for (let i = 0; i < list.length; i++) {
 			const w = list[i];
@@ -194,8 +206,14 @@ export class TuiDock {
 				y += 1;
 				continue;
 			}
-			const lastOpen = open[open.length - 1];
-			w.h = w === lastOpen ? slot.y + slot.h - y : each;
+			const last = open[open.length - 1] === w;
+			if (last) {
+				w.h = Math.max(4, rest);
+			} else {
+				const idx = open.indexOf(w);
+				w.h = Math.max(4, Math.floor((weights[idx] / sum) * body));
+				rest -= w.h;
+			}
 			y += w.h;
 		}
 	}
@@ -216,11 +234,136 @@ export class TuiDock {
 		else w.dock = "float";
 	}
 
+	slotOf(dock) {
+		return this.viewItems().filter((w) => w.visible && w.dock === dock);
+	}
+
+	startResize(id, edge, tui) {
+		const w = this.wins.get(id);
+		if (!w) return;
+		const left = this.slotOf("left");
+		const right = this.slotOf("right");
+		const bottom = this.slotOf("bottom");
+		const stack = this.slotOf(w.dock);
+		const i = stack.findIndex((x) => x.id === id);
+		const above = i > 0 ? stack[i - 1] : null;
+		const below = i >= 0 && i < stack.length - 1 ? stack[i + 1] : null;
+		this.drag = {
+			type: "resize",
+			id,
+			edge,
+			ax: tui.mx,
+			ay: tui.my,
+			sx: w.x,
+			sy: w.y,
+			sw: w.w,
+			sh: this.winH(w),
+			leftW: left[0]?.w || 0,
+			rightW: right[0]?.w || 0,
+			bottomH: bottom.length ? Math.max(...bottom.map((x) => x.h)) : 0,
+			aboveId: above && !above.collapsed ? above.id : "",
+			belowId: below && !below.collapsed ? below.id : "",
+			ah: above ? this.winH(above) : 0,
+			bh: below ? this.winH(below) : 0,
+			moved: false,
+		};
+		this.focus(id);
+	}
+
+	stepResize(tui, work, w) {
+		const drag = this.drag;
+		const edge = drag.edge;
+		const dx = tui.mx - drag.ax;
+		const dy = tui.my - drag.ay;
+		if (Math.abs(dx) + Math.abs(dy) >= 1) drag.moved = true;
+		if (tui.down) {
+			if (w.dock === "float") this.resizeFloat(w, drag, dx, dy, work);
+			else if (w.kind === "stage" || w.dock === "center") this.resizeStage(edge, drag, dx, dy, work);
+			else this.resizeDocked(w, drag, dx, dy, work);
+			w.collapsed = false;
+		}
+		if (tui.released) this.drag = null;
+	}
+
+	resizeFloat(w, drag, dx, dy, work) {
+		const edge = drag.edge;
+		let ww = drag.sw;
+		let hh = drag.sh;
+		if (edge.includes("e")) ww = drag.sw + dx;
+		if (edge.includes("w")) ww = drag.sw - dx;
+		if (edge.includes("s")) hh = drag.sh + dy;
+		if (edge.includes("n")) hh = drag.sh - dy;
+		ww = clamp(ww, 16, work.w);
+		hh = clamp(hh, 4, work.h);
+		let x = drag.sx;
+		let y = drag.sy;
+		if (edge.includes("w")) x = drag.sx + drag.sw - ww;
+		if (edge.includes("n")) y = drag.sy + drag.sh - hh;
+		w.x = clamp(x, work.x, work.x + work.w - 8);
+		w.y = clamp(y, work.y, work.y + work.h - 1);
+		w.w = ww;
+		w.h = hh;
+	}
+
+	resizeStage(edge, drag, dx, dy, work) {
+		const maxW = Math.floor(work.w * 0.42);
+		const maxH = Math.floor(work.h * 0.45);
+		if (edge.includes("w")) {
+			for (const o of this.slotOf("left")) o.w = clamp(drag.leftW + dx, 16, maxW);
+		}
+		if (edge.includes("e")) {
+			for (const o of this.slotOf("right")) o.w = clamp(drag.rightW - dx, 16, maxW);
+		}
+		if (edge.includes("s")) {
+			for (const o of this.slotOf("bottom")) o.h = clamp(drag.bottomH - dy, 6, maxH);
+		}
+	}
+
+	resizeDocked(w, drag, dx, dy, work) {
+		const edge = drag.edge;
+		const maxW = Math.floor(work.w * 0.42);
+		const maxH = Math.floor(work.h * 0.45);
+		if (w.dock === "left" && (edge.includes("e") || edge.includes("w"))) {
+			const nw = clamp(edge.includes("e") ? drag.sw + dx : drag.sw - dx, 16, maxW);
+			for (const o of this.slotOf("left")) o.w = nw;
+		}
+		if (w.dock === "right" && (edge.includes("e") || edge.includes("w"))) {
+			const nw = clamp(edge.includes("w") ? drag.sw - dx : drag.sw + dx, 16, maxW);
+			for (const o of this.slotOf("right")) o.w = nw;
+		}
+		if (w.dock === "bottom" && (edge.includes("n") || edge.includes("s"))) {
+			const nh = clamp(edge.includes("n") ? drag.sh - dy : drag.sh + dy, 6, maxH);
+			for (const o of this.slotOf("bottom")) o.h = nh;
+		}
+		if ((w.dock === "left" || w.dock === "right") && (edge.includes("n") || edge.includes("s"))) {
+			if (edge.includes("s") && drag.belowId) {
+				const below = this.wins.get(drag.belowId);
+				if (below) {
+					const tot = drag.sh + drag.bh;
+					w.h = clamp(drag.sh + dy, 4, tot - 4);
+					below.h = tot - w.h;
+				}
+			}
+			if (edge.includes("n") && drag.aboveId) {
+				const above = this.wins.get(drag.aboveId);
+				if (above) {
+					const tot = drag.sh + drag.ah;
+					w.h = clamp(drag.sh - dy, 4, tot - 4);
+					above.h = tot - w.h;
+				}
+			}
+		}
+	}
+
 	stepDrag(tui, work) {
 		if (!this.drag) return;
 		const w = this.wins.get(this.drag.id);
 		if (!w) {
 			this.drag = null;
+			return;
+		}
+		if (this.drag.type === "resize") {
+			this.stepResize(tui, work, w);
 			return;
 		}
 		if (tui.down) {
@@ -252,24 +395,27 @@ export class TuiDock {
 		const w = this.wins.get(id);
 		if (!w || !w.visible) return null;
 		const h = this.winH(w);
-		const opaque = w.kind !== "stage";
+		const overlay = w.kind === "stage" || w.kind === "code";
 		const chrome = tui.windowEx(w.x, w.y, w.w, h, w.title, {
 			badge: w.badge,
 			closable: w.closable,
-			opaque,
+			opaque: !overlay,
 		});
 		const top = this.topAt(tui.mx, tui.my);
 		const mine = !!top && top.id === id;
+		if (mine && chrome.edgeHit) this.hoverEdge = chrome.edgeHit;
 		if (!this.menuLock && mine && chrome.closeHot && tui.clicked) {
 			w.visible = false;
 			return null;
 		}
-		if (!this.menuLock && mine && chrome.titleHit && tui.clicked && w.kind !== "stage") {
+		if (!this.menuLock && mine && chrome.edgeHit && tui.clicked) {
+			this.startResize(id, chrome.edgeHit, tui);
+		} else if (!this.menuLock && mine && chrome.titleHit && tui.clicked && w.kind !== "stage") {
 			this.drag = { id, ox: tui.mx - w.x, oy: tui.my - w.y, sx: w.x, sy: w.y, moved: false };
 			this.focus(id);
 		}
 		if (w.collapsed || chrome.client.h < 1) return null;
-		if (!opaque) tui.clearClient(chrome.client, false);
+		if (overlay) tui.clearClient(chrome.client, false);
 		tui.content = chrome.client;
 		tui.cx = chrome.client.x;
 		tui.cy = chrome.client.y;

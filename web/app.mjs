@@ -631,10 +631,10 @@ function paintHost(now) {
 	tui.finishScreen();
 	if (tuiCtx) drawTui(tuiCtx, tui, rect.width, rect.height, dpr);
 
-	const chrome =
-		menuOpen || !!dock.drag || dock.coversChrome(tui.mx, tui.my) || dock.floatsOverStage() || !!tui.activeId;
+	const chrome = menuOpen || !!dock.drag || dock.floatsOverStage() || !!tui.activeId;
 	tuiCanvas.style.zIndex = chrome ? "5" : "2";
 	if (view) view.style.pointerEvents = chrome ? "none" : "auto";
+	tuiCanvas.style.cursor = dock.resizeCursor();
 
 	let stagePx = stageClient ? tui.rectToPixel(stageClient) : null;
 	if (stagePx && currentMode === "play") {

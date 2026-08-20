@@ -34,6 +34,20 @@ export function drawTui(ctx, tui, cssW, cssH, dpr) {
 	ctx.textBaseline = "middle";
 	ctx.imageSmoothingEnabled = false;
 
+	// Stage / code clients keep bg === null so the live canvas underneath shows
+	// through when this layer is stacked above #view (menus, floats, drags).
+	ctx.save();
+	ctx.globalCompositeOperation = "destination-out";
+	ctx.fillStyle = "#000";
+	for (let i = 0; i < cells.length; i++) {
+		const cell = cells[i];
+		if (!cell || cell.bg) continue;
+		const col = i % tui.cols;
+		const row = (i / tui.cols) | 0;
+		ctx.fillRect(tui.originX + col * tui.cellW, tui.originY + row * tui.cellH, tui.cellW, tui.cellH);
+	}
+	ctx.restore();
+
 	for (let i = 0; i < cells.length; i++) {
 		const cell = cells[i];
 		if (!cell) continue;

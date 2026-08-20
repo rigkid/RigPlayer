@@ -26,6 +26,39 @@ export const C = {
 export const BOX_ASCII = { h: "-", v: "|", tl: "+", tr: "+", bl: "+", br: "+" };
 export const BOX_UNICODE = { h: "─", v: "│", tl: "┌", tr: "┐", bl: "└", br: "┘" };
 
+/** CSS cursor for a window-border hit from `windowEdgeHit`. */
+export const RESIZE_CURSOR = {
+	n: "ns-resize",
+	s: "ns-resize",
+	e: "ew-resize",
+	w: "ew-resize",
+	ne: "nesw-resize",
+	nw: "nwse-resize",
+	se: "nwse-resize",
+	sw: "nesw-resize",
+};
+
+/**
+ * One-cell window border hit. Title-bar interior is not a resize handle
+ * (that stays drag / collapse); corners and the other three edges are.
+ * @returns {""|"n"|"s"|"e"|"w"|"ne"|"nw"|"se"|"sw"}
+ */
+export function windowEdgeHit(mx, my, x, y, w, h) {
+	if (mx < x || mx >= x + w || my < y || my >= y + h) return "";
+	const onL = mx === x;
+	const onR = mx === x + w - 1;
+	const onB = h > 1 && my === y + h - 1;
+	const onT = h > 1 && my === y;
+	if (onT && onL) return "nw";
+	if (onT && onR) return "ne";
+	if (onB && onL) return "sw";
+	if (onB && onR) return "se";
+	if (onL) return "w";
+	if (onR) return "e";
+	if (onB) return "s";
+	return "";
+}
+
 export class ImTui {
 	cols = 80;
 	rows = 40;
@@ -120,7 +153,7 @@ export class ImTui {
 
 	fillDesk() {
 		for (let y = 0; y < this.rows; y++) {
-			for (let x = 0; x < this.cols; x++) this.put(x, y, " ", C.desk);
+			for (let x = 0; x < this.cols; x++) this.put(x, y, " ", C.desk, C.desk);
 		}
 	}
 
@@ -201,7 +234,7 @@ export class ImTui {
 	}
 
 	/**
-	 * Window chrome with close hit and title-bar drag hit.
+	 * Window chrome with close hit, title-bar drag hit, and border resize hit.
 	 * @param {number} x
 	 * @param {number} y
 	 * @param {number} w
@@ -227,13 +260,14 @@ export class ImTui {
 			this.write(tx, y, tag.slice(0, Math.max(0, right - x - 2)), C.live);
 		}
 		const titleW = Math.max(1, w - (closable ? 5 : 2));
-		const titleHit = this.hovered(x + 1, y, titleW, 1) && !closeHot;
+		const edgeHit = closeHot ? "" : windowEdgeHit(this.mx, this.my, x, y, w, h);
+		const titleHit = this.hovered(x + 1, y, titleW, 1) && !closeHot && !edgeHit;
 		const client = { x: x + 1, y: y + 1, w: Math.max(1, w - 2), h: Math.max(0, h - 2) };
 		if (opts.opaque !== false && client.h > 0) this.clearClient(client, true);
 		this.content = client;
 		this.cx = client.x;
 		this.cy = client.y;
-		return { client, closeHot, titleHit };
+		return { client, closeHot, titleHit, edgeHit };
 	}
 
 	clearClient(client, opaque = false) {
