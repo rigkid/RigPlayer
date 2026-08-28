@@ -138,6 +138,41 @@ export class ImTui {
 		return this.cells;
 	}
 
+	/**
+	 * Draw-time pair extra per cell (CSS px). Layout and hit-testing stay on
+	 * the integer grid; only the glyph image of a text run slides.
+	 * `pairDu(prev, next)` is font units; multiplied by `scale` → CSS px.
+	 * Accumulated offset is clamped so a long title cannot walk into a frame.
+	 * @param {(prev: string, next: string) => number} pairDu
+	 * @param {number} scale
+	 * @param {(ch: string) => boolean} chrome
+	 */
+	kernOffsets(pairDu, scale, chrome) {
+		const n = this.cols * this.rows;
+		const out = new Float32Array(n);
+		const maxDx = this.cellW * 0.42;
+		for (let row = 0; row < this.rows; row++) {
+			let runDx = 0;
+			let prev = "";
+			for (let col = 0; col < this.cols; col++) {
+				const i = row * this.cols + col;
+				const ch = this.cells[i]?.ch ?? " ";
+				if (chrome(ch)) {
+					runDx = 0;
+					prev = "";
+					continue;
+				}
+				if (prev) {
+					runDx += pairDu(prev, ch) * scale;
+					runDx = Math.max(-maxDx, Math.min(maxDx, runDx));
+				}
+				out[i] = runDx;
+				prev = ch;
+			}
+		}
+		return out;
+	}
+
 	cellToPixel(c, r) {
 		return { x: this.originX + c * this.cellW, y: this.originY + r * this.cellH };
 	}

@@ -12,6 +12,8 @@ const {
 	ImTui,
 	C,
 	TuiDock,
+	isChromeChar,
+	pairKernClass,
 	gridMetrics,
 	documentHasChrome,
 	drawDocumentControls,
@@ -220,6 +222,17 @@ test("dock View menu lists document panels", () => {
 	assert.ok(labels.some((l) => l.includes("Tool")));
 	assert.ok(labels.some((l) => l.includes("Code")));
 	assert.ok(dock.get(WIN.stage));
+});
+
+test("kernOffsets tucks AV and resets after chrome", () => {
+	const tui = new ImTui();
+	boot(tui, 16, 4);
+	tui.write(0, 0, "AV", C.text);
+	tui.write(0, 1, "A│V", C.text);
+	const dx = tui.kernOffsets(pairKernClass, 1, isChromeChar);
+	assert.equal(dx[0], 0);
+	assert.ok(dx[1] < 0, "V after A should tuck");
+	assert.equal(dx[tui.cols + 2], 0, "V after box chrome starts a new run");
 });
 
 test("View menu items toggle windows; Issues starts closed; play Code stays closed", () => {

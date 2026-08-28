@@ -32,6 +32,7 @@ const audioSrc = read("audio.mjs");
 const shareSrc = read("share.mjs");
 const validateSrc = read("validate.mjs");
 const tuiEngineSrc = read("imtui/engine.mjs");
+const tuiKernSrc = read("imtui/kern.mjs");
 const tuiDrawSrc = read("imtui/draw.mjs");
 const tuiDockSrc = read("imtui/dock.mjs");
 const tuiPanelsSrc = read("imtui/panels.mjs");
@@ -77,7 +78,10 @@ const viewViewerBody = ${JSON.stringify(viewViewerSrc)}
 	.replace(/from ["']\\.\\/shader\\.mjs["']/, \`from "\${viewShaderUrl}"\`);
 const viewViewerUrl = URL.createObjectURL(new Blob([viewViewerBody], { type: "text/javascript" }));
 const tuiEngineUrl = URL.createObjectURL(new Blob([${JSON.stringify(tuiEngineSrc)}], { type: "text/javascript" }));
-const tuiDrawBody = ${JSON.stringify(tuiDrawSrc)}.replace(/from ["']\\.\\/engine\\.mjs["']/, \`from "\${tuiEngineUrl}"\`);
+const tuiKernUrl = URL.createObjectURL(new Blob([${JSON.stringify(tuiKernSrc)}], { type: "text/javascript" }));
+const tuiDrawBody = ${JSON.stringify(tuiDrawSrc)}
+	.replace(/from ["']\\.\\/engine\\.mjs["']/, \`from "\${tuiEngineUrl}"\`)
+	.replace(/from ["']\\.\\/kern\\.mjs["']/, \`from "\${tuiKernUrl}"\`);
 const tuiDrawUrl = URL.createObjectURL(new Blob([tuiDrawBody], { type: "text/javascript" }));
 const tuiDockUrl = URL.createObjectURL(new Blob([${JSON.stringify(tuiDockSrc)}], { type: "text/javascript" }));
 const tuiPanelsBody = ${JSON.stringify(tuiPanelsSrc)}.replace(/from ["']\\.\\/engine\\.mjs["']/, \`from "\${tuiEngineUrl}"\`);
@@ -86,6 +90,7 @@ const tuiHostBody = ${JSON.stringify(tuiHostSrc)}.replace(/from ["']\\.\\/panels
 const tuiHostUrl = URL.createObjectURL(new Blob([tuiHostBody], { type: "text/javascript" }));
 const tuiIndexBody = ${JSON.stringify(tuiIndexSrc)}
 	.replace(/from ["']\\.\\/engine\\.mjs["']/, \`from "\${tuiEngineUrl}"\`)
+	.replace(/from ["']\\.\\/kern\\.mjs["']/, \`from "\${tuiKernUrl}"\`)
 	.replace(/from ["']\\.\\/draw\\.mjs["']/, \`from "\${tuiDrawUrl}"\`)
 	.replace(/from ["']\\.\\/dock\\.mjs["']/, \`from "\${tuiDockUrl}"\`)
 	.replace(/from ["']\\.\\/panels\\.mjs["']/, \`from "\${tuiPanelsUrl}"\`)
@@ -98,7 +103,7 @@ const appBody = ${JSON.stringify(appSrc)}
 	.replace(/from ["']\\.\\/play\\.mjs["']/, \`from "\${playUrl}"\`)
 	.replace(/from ["']\\.\\/share\\.mjs["']/, \`from "\${shareUrl}"\`)
 	.replace(/from ["']\\.\\/validate\\.mjs["']/, \`from "\${validateUrl}"\`)
-	.replace(/from ["']\\.\\/tui\\/index\\.mjs["']/, \`from "\${tuiUrl}"\`)
+	.replace(/from ["']\\.\\/imtui\\/index\\.mjs["']/, \`from "\${tuiUrl}"\`)
 	.replace(/from ["']\\.\\/view\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`)
 	.replace(/from ["']\\.\\/view\\/viewer\\.mjs["']/, \`from "\${viewViewerUrl}"\`)
 	.replace(/from ["']\\.\\/view\\/editor\\.mjs["']/, \`from "\${viewEditorUrl}"\`);

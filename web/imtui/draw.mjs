@@ -4,6 +4,7 @@
  */
 
 import { rgbCss } from "./engine.mjs";
+import { isChromeChar, pairKernClass, KERN_UPM } from "./kern.mjs";
 
 const FONT =
 	'ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace';
@@ -36,15 +37,26 @@ export function drawTui(ctx, tui, cssW, cssH, dpr) {
 
 	// Stage / code clients keep bg === null so the live canvas underneath shows
 	// through when this layer is stacked above #view (menus, floats, drags).
+	// Punch whole row-runs, not one rect per cell — fractional DPR left a
+	// hairline grid of desk fill over the scene.
+	const dx = tui.kernOffsets(pairKernClass, tui.cellW / KERN_UPM, isChromeChar);
+
 	ctx.save();
 	ctx.globalCompositeOperation = "destination-out";
 	ctx.fillStyle = "#000";
-	for (let i = 0; i < cells.length; i++) {
-		const cell = cells[i];
-		if (!cell || cell.bg) continue;
-		const col = i % tui.cols;
-		const row = (i / tui.cols) | 0;
-		ctx.fillRect(tui.originX + col * tui.cellW, tui.originY + row * tui.cellH, tui.cellW, tui.cellH);
+	const pad = 1;
+	for (let row = 0; row < tui.rows; row++) {
+		let run = -1;
+		for (let col = 0; col <= tui.cols; col++) {
+			const hole = col < tui.cols && cells[row * tui.cols + col] && !cells[row * tui.cols + col].bg;
+			if (hole && run < 0) run = col;
+			if (!hole && run >= 0) {
+				const x = tui.originX + run * tui.cellW;
+				const y = tui.originY + row * tui.cellH;
+				ctx.fillRect(x - pad, y - pad, (col - run) * tui.cellW + pad * 2, tui.cellH + pad * 2);
+				run = -1;
+			}
+		}
 	}
 	ctx.restore();
 
@@ -61,7 +73,7 @@ export function drawTui(ctx, tui, cssW, cssH, dpr) {
 		}
 		if (!cell.ch || cell.ch === " ") continue;
 		ctx.fillStyle = rgbCss(cell.color);
-		ctx.fillText(cell.ch, x, y + tui.cellH * 0.52);
+		ctx.fillText(cell.ch, x + (dx[i] || 0), y + tui.cellH * 0.52);
 	}
 }
 
