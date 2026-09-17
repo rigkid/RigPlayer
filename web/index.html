@@ -86,6 +86,62 @@
 			letter-spacing: 0;
 		}
 		input[type="file"] { display: none; }
+		#pad {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			z-index: 6;
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-end;
+			padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+			pointer-events: none;
+			user-select: none;
+			-webkit-user-select: none;
+			-webkit-touch-callout: none;
+		}
+		#pad-dpad {
+			position: relative;
+			width: 136px;
+			height: 136px;
+			border-radius: 50%;
+			border: 1px solid rgba(232, 236, 241, 0.25);
+			background: rgba(13, 16, 21, 0.55);
+			pointer-events: auto;
+			touch-action: none;
+		}
+		#pad-dpad .pad-arrow {
+			position: absolute;
+			color: rgba(232, 236, 241, 0.6);
+			font-size: 16px;
+			pointer-events: none;
+		}
+		.pad-up { top: 8px; left: 50%; transform: translateX(-50%); }
+		.pad-down { bottom: 8px; left: 50%; transform: translateX(-50%); }
+		.pad-left { left: 12px; top: 50%; transform: translateY(-50%); }
+		.pad-right { right: 12px; top: 50%; transform: translateY(-50%); }
+		#pad-actions {
+			display: flex;
+			gap: 16px;
+			pointer-events: none;
+		}
+		#pad-actions button {
+			width: 68px;
+			height: 68px;
+			border-radius: 50%;
+			border: 1px solid rgba(232, 236, 241, 0.25);
+			background: rgba(13, 16, 21, 0.55);
+			color: rgba(232, 236, 241, 0.85);
+			font: 20px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
+			pointer-events: auto;
+			touch-action: none;
+		}
+		#pad-dpad.held,
+		#pad-actions button.held {
+			background: rgba(79, 163, 255, 0.3);
+			border-color: rgba(79, 163, 255, 0.6);
+		}
 		.rig-edit {
 			position: relative;
 			width: 100%;
@@ -138,6 +194,18 @@
 		<canvas id="tui"></canvas>
 		<canvas id="view" width="128" height="128"></canvas>
 		<div id="code-host" hidden></div>
+		<div id="pad" hidden>
+			<div id="pad-dpad" aria-label="d-pad">
+				<span class="pad-arrow pad-up">&#9650;</span>
+				<span class="pad-arrow pad-down">&#9660;</span>
+				<span class="pad-arrow pad-left">&#9664;</span>
+				<span class="pad-arrow pad-right">&#9654;</span>
+			</div>
+			<div id="pad-actions">
+				<button id="pad-o" type="button" aria-label="O button">O</button>
+				<button id="pad-x" type="button" aria-label="X button">X</button>
+			</div>
+		</div>
 		<input id="file" type="file" accept=".json,.rig,application/json" />
 		<div id="boot">Loading RigPlayer…</div>
 	</div>

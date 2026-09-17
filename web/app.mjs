@@ -33,7 +33,10 @@ const tuiCanvas = document.getElementById("tui");
 const view = document.getElementById("view");
 const codeHost = document.getElementById("code-host");
 const fileInput = document.getElementById("file");
+const pad = document.getElementById("pad");
+const padDpad = document.getElementById("pad-dpad");
 const boot = document.getElementById("boot");
+const touchUi = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
 const embed = document.documentElement.classList.contains("embed");
 
 const tuiCtx = tuiCanvas?.getContext("2d");
@@ -417,6 +420,9 @@ function runCmd(cmd) {
 		case "about":
 			dock.setVisible("about", true);
 			break;
+		case "howto-url":
+			dock.setVisible("howto", true);
+			break;
 		case "site":
 			window.open("https://rig.works/", "_blank");
 			break;
@@ -445,10 +451,95 @@ window.addEventListener("drop", (e) => {
 	if (f) void loadFile(f);
 });
 
+// --- Touch gamepad (phones / tablets) -------------------------------------
+// Pixel/Lua documents only take keyboard input; on a coarse-pointer device
+// the pad below feeds the same btn() indices (0-3 dirs, 4 O, 5 X).
+
+function padSet(i, isDown) {
+	handle?.setButton?.(i, isDown);
+}
+
+for (const [id, idx] of [
+	["pad-o", 4],
+	["pad-x", 5],
+]) {
+	const el = document.getElementById(id);
+	if (!el) continue;
+	el.addEventListener("pointerdown", (e) => {
+		el.setPointerCapture?.(e.pointerId);
+		el.classList.add("held");
+		padSet(idx, true);
+		e.preventDefault();
+	});
+	const release = () => {
+		el.classList.remove("held");
+		padSet(idx, false);
+	};
+	el.addEventListener("pointerup", release);
+	el.addEventListener("pointercancel", release);
+	el.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+if (padDpad) {
+	let dpadPointer = -1;
+	const clearDpad = () => {
+		for (let i = 0; i < 4; i++) padSet(i, false);
+		padDpad.classList.remove("held");
+	};
+	// 8-way: an axis engages past the dead zone unless the other axis
+	// dominates it ~2.4:1 (tan 22.5° = 0.414) — diagonals just work.
+	const applyDpad = (e) => {
+		const r = padDpad.getBoundingClientRect();
+		const dx = e.clientX - (r.left + r.width / 2);
+		const dy = e.clientY - (r.top + r.height / 2);
+		const dead = r.width * 0.12;
+		const ax = Math.abs(dx);
+		const ay = Math.abs(dy);
+		const t = 0.414;
+		padSet(0, dx < -dead && ax >= ay * t);
+		padSet(1, dx > dead && ax >= ay * t);
+		padSet(2, dy < -dead && ay >= ax * t);
+		padSet(3, dy > dead && ay >= ax * t);
+	};
+	padDpad.addEventListener("pointerdown", (e) => {
+		dpadPointer = e.pointerId;
+		padDpad.setPointerCapture?.(e.pointerId);
+		padDpad.classList.add("held");
+		applyDpad(e);
+		e.preventDefault();
+	});
+	padDpad.addEventListener("pointermove", (e) => {
+		if (e.pointerId === dpadPointer) applyDpad(e);
+	});
+	const endDpad = (e) => {
+		if (e.pointerId !== dpadPointer) return;
+		dpadPointer = -1;
+		clearDpad();
+	};
+	padDpad.addEventListener("pointerup", endDpad);
+	padDpad.addEventListener("pointercancel", endDpad);
+	padDpad.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
 const cssPos = (e, canvas) => {
 	const r = canvas.getBoundingClientRect();
 	return { x: e.clientX - r.left, y: e.clientY - r.top };
 };
+
+/**
+ * Process one UI frame synchronously, inside the pointer event's call stack.
+ * Menu commands that need transient user activation — File → Open
+ * (fileInput.click()) and Full screen — are silently ignored by mobile
+ * browsers when they run in the next requestAnimationFrame instead of the
+ * gesture itself. The following rAF pass sees clicked/released already
+ * consumed, so nothing fires twice.
+ */
+function runSyncUiPass() {
+	if (embed || !tuiCanvas || !tuiCtx) return;
+	paintHost(performance.now());
+	ptrClicked = false;
+	ptrReleased = false;
+}
 
 if (tuiCanvas) {
 	tuiCanvas.addEventListener("pointerdown", (e) => {
@@ -459,6 +550,7 @@ if (tuiCanvas) {
 		ptrClicked = true;
 		tuiCanvas.setPointerCapture?.(e.pointerId);
 		e.preventDefault();
+		runSyncUiPass();
 	});
 	tuiCanvas.addEventListener("pointermove", (e) => {
 		const p = cssPos(e, tuiCanvas);
@@ -468,6 +560,7 @@ if (tuiCanvas) {
 	tuiCanvas.addEventListener("pointerup", () => {
 		ptrDown = false;
 		ptrReleased = true;
+		runSyncUiPass();
 	});
 	tuiCanvas.addEventListener("pointercancel", () => {
 		ptrDown = false;
@@ -518,6 +611,7 @@ function menusForFrame() {
 			label: "Help",
 			items: [
 				{ id: "about", label: "About RigPlayer" },
+				{ id: "howto-url", label: "Load via data URL" },
 				{ id: "site", label: "RigWorks..." },
 				{ id: "single", label: "Single-file HTML" },
 			],
@@ -537,6 +631,7 @@ function paintHost(now) {
 	const hasCodes = codes.length > 0;
 	const issues = currentReport?.issues || [];
 	const aboutWas = dock.get("about")?.visible ?? false;
+	const howtoWas = dock.get("howto")?.visible ?? false;
 	syncHostWindows(dock, {
 		parsed: currentParsed,
 		report: currentReport,
@@ -562,6 +657,14 @@ function paintHost(now) {
 		h: 16,
 		kind: "about",
 		visible: aboutWas,
+	});
+	dock.define("howto", {
+		title: "Load via data URL",
+		dock: "float",
+		w: 52,
+		h: 13,
+		kind: "howto",
+		visible: howtoWas,
 	});
 
 	const menus = menusForFrame();
@@ -621,6 +724,16 @@ function paintHost(now) {
 			tui.text("Viewer presents. Player plays.", C.dim);
 			tui.text("ImTui chrome. Same .rig in another app, UI included.", C.dim);
 			tui.text("rig.works", C.hot);
+		} else if (w.kind === "howto") {
+			tui.text("Put the whole document in the link:", C.text);
+			tui.text("1. Load it — drop the file, or File > Open.", C.text);
+			tui.text("2. File > Copy link.", C.text);
+			tui.text("The copied ?doc= URL contains the document", C.dim);
+			tui.text("itself — no hosting, no external JSON.", C.dim);
+			tui.spacer();
+			tui.text("Too big (>8000 chars)? File > Save local,", C.warn);
+			tui.text("or host the file and use ?src=.", C.warn);
+			tui.text("Details: docs/data-url.md", C.dim);
 		} else if (w.kind === "issues") {
 			if (!issues.length) tui.text("No issues.", C.dim);
 			const max = Math.max(3, client.y + client.h - tui.cy);
@@ -708,6 +821,7 @@ function frameLoop(now) {
 		view.hidden = !currentMode;
 		if (codeHost) codeHost.hidden = true;
 	}
+	if (pad) pad.hidden = !(touchUi && currentMode === "play");
 
 	last = now;
 	ptrClicked = false;

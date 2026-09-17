@@ -34,6 +34,7 @@ Share ladder: [docs/ai-share.md](docs/ai-share.md).
 
 - [README.md](README.md) — run web / desktop
 - [docs/port-map.md](docs/port-map.md) — schema honesty
+- [docs/data-url.md](docs/data-url.md) — self-contained `?doc=` data URL, no hosting
 - [docs/ai-share.md](docs/ai-share.md) — generate → open URL
 
 ## Tools

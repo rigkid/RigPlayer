@@ -941,6 +941,10 @@ end
 
 	return {
 		dispose,
+		/** External button source (touch gamepad) — same indices as keyToBtn. */
+		setButton(i, isDown) {
+			if (i >= 0 && i < 6) state.btn[i] = !!isDown;
+		},
 		get title() {
 			return state.title;
 		},

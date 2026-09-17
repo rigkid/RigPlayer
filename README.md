@@ -10,6 +10,10 @@ Desktop chrome (File → Open, skipped keys) shares **[rigDocumentShell](https:/
 
 Drop a `.rig` / `.json`, File → Open, `?src=`, `?doc=`, `?local=`, `?embed=1`, Copy link, Save local, single-file HTML.
 
+**No hosting needed:** a `?doc=` link carries the whole document inside the URL — load a file, **File → Copy link**, paste anywhere. Step-by-step: [docs/data-url.md](docs/data-url.md) (also in-app under **Help → Load via data URL**).
+
+**Phones:** a touch d-pad + O/X buttons appear automatically for pixel/Lua documents on coarse-pointer devices.
+
 Validator ([`web/validate.mjs`](web/validate.mjs)) knows the union of pixel/Lua and scene/GLSL schemas. Failures show in the **Issues** panel.
 
 | | |
@@ -66,9 +70,12 @@ Web audio: `sfx` / `music` from `rig.music.pattern` (click or key once to unlock
 | Z / C | 4 (O) |
 | X / V | 5 (X) |
 
+Touch devices get an on-screen 8-way d-pad (btn 0–3) and O / X buttons (btn 4 / 5) — no keyboard needed.
+
 ## Docs
 
 - [docs/port-map.md](docs/port-map.md) — schema honesty
+- [docs/data-url.md](docs/data-url.md) — load from a `?doc=` data URL, no hosting
 - [docs/ai-share.md](docs/ai-share.md) — `?doc=` / `?src=` ladder
 
 ## Repo layout

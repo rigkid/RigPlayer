@@ -16,6 +16,8 @@ Goal: an agent (or human) emits a Rig document, then hands the user a link that 
 
 Budgets match Viewer (`web/share.mjs`): soft **4000** / hard **8000** encoded `?doc=` chars. Formats: `u1.<base64url>` or `z1.<base64url(deflate-raw)>`.
 
+Step-by-step `?doc=` how-to (no hosting, no external JSON): [data-url.md](data-url.md).
+
 ## What to do as an agent
 
 1. Generate a `.rig` / `.json` with RigWorks schemas (see [port-map](port-map.md)).
