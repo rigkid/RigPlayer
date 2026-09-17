@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 	<title>RigPlayer</title>
 	<meta name="description" content="Full RigWorks host — ImTui chrome, pixel/Lua and scene/GLSL in the browser." />
 	<script>
@@ -95,7 +95,7 @@
 			display: flex;
 			justify-content: space-between;
 			align-items: flex-end;
-			padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+			padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
 			pointer-events: none;
 			user-select: none;
 			-webkit-user-select: none;
@@ -103,8 +103,8 @@
 		}
 		#pad-dpad {
 			position: relative;
-			width: 136px;
-			height: 136px;
+			width: clamp(88px, 26vmin, 136px);
+			height: clamp(88px, 26vmin, 136px);
 			border-radius: 50%;
 			border: 1px solid rgba(232, 236, 241, 0.25);
 			background: rgba(13, 16, 21, 0.55);
@@ -127,8 +127,8 @@
 			pointer-events: none;
 		}
 		#pad-actions button {
-			width: 68px;
-			height: 68px;
+			width: clamp(48px, 14vmin, 68px);
+			height: clamp(48px, 14vmin, 68px);
 			border-radius: 50%;
 			border: 1px solid rgba(232, 236, 241, 0.25);
 			background: rgba(13, 16, 21, 0.55);

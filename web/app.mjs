@@ -38,6 +38,32 @@ const padDpad = document.getElementById("pad-dpad");
 const boot = document.getElementById("boot");
 const touchUi = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
 const embed = document.documentElement.classList.contains("embed");
+const NARROW_PX = 520;
+let infoHiddenForPhone = false;
+
+/**
+ * Stock gridMetrics keeps cellW ≥ 8 and cols ≥ 48 (min ~384–528 CSS px).
+ * On a portrait phone that overflows the viewport (originX < 0), so the
+ * menu bar and window chrome get clipped. Shrink cells so 48 columns fit.
+ */
+function hostMetrics(cssW, cssH) {
+	const m = gridMetrics(cssW, cssH);
+	if (m.originX >= 0 && m.originY >= 0) return m;
+	const cellW = Math.max(6, Math.floor(cssW / 48));
+	const cellH = Math.max(8, Math.round(cellW / 0.62));
+	const cols = Math.max(48, Math.floor(cssW / cellW));
+	const rows = Math.max(20, Math.floor(cssH / cellH));
+	const gridW = cols * cellW;
+	const gridH = rows * cellH;
+	return {
+		cellW,
+		cellH,
+		cols,
+		rows,
+		originX: Math.max(0, Math.floor((cssW - gridW) / 2)),
+		originY: Math.max(0, Math.floor((cssH - gridH) / 2)),
+	};
+}
 
 const tuiCtx = tuiCanvas?.getContext("2d");
 const tui = new ImTui();
@@ -622,7 +648,7 @@ function menusForFrame() {
 function paintHost(now) {
 	const rect = tuiCanvas.getBoundingClientRect();
 	const dpr = Math.min(window.devicePixelRatio || 1, 3);
-	const m = gridMetrics(rect.width, rect.height);
+	const m = hostMetrics(rect.width, rect.height);
 	tui.setPointer(ptrX, ptrY, ptrDown, ptrClicked, ptrReleased);
 	tui.beginScreen(m.originX, m.originY, m.cellW, m.cellH, m.cols, m.rows);
 	tui.fillDesk();
@@ -650,6 +676,10 @@ function paintHost(now) {
 		stageBadge: currentMode ? "LIVE" : "",
 		supportedActions: SUPPORTED_ACTION_IDS,
 	});
+	if (!infoHiddenForPhone && (touchUi || rect.width < NARROW_PX)) {
+		dock.setVisible(WIN.info, false);
+		infoHiddenForPhone = true;
+	}
 	dock.define("about", {
 		title: "About",
 		dock: "float",
@@ -668,7 +698,7 @@ function paintHost(now) {
 	});
 
 	const menus = menusForFrame();
-	const bar = tui.menubar(menus, menuOpen, "RigPlayer");
+	const bar = tui.menubar(menus, menuOpen, m.cols < 60 ? "Rig" : "RigPlayer");
 	menuOpen = bar.open;
 
 	const work = { x: 0, y: 1, w: m.cols, h: Math.max(6, m.rows - 2) };
