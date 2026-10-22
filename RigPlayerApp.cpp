@@ -83,9 +83,6 @@ unsigned int compileShader(unsigned int type, const char* src) {
 } // namespace
 
 RigPlayerApp::RigPlayerApp() {
-	window().width = 640;
-	window().height = 640;
-	window().title = "RigPlayer";
 	m_rgba.assign(PlayRuntime::kSize * PlayRuntime::kSize * 4, 0);
 }
 
