@@ -29,7 +29,7 @@
 			overscroll-behavior: none;
 			background: #0b0d10;
 			color: #e8ecf1;
-			font: 14px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+			font: 14px/1.4 "Segoe UI", system-ui, sans-serif;
 		}
 		#app {
 			position: relative;
@@ -82,83 +82,82 @@
 		html.doc #code-host { z-index: 6; }
 		.host {
 			position: absolute;
-			top: 0;
-			left: 0;
-			right: 0;
+			top: 0.55rem;
+			left: 0.55rem;
 			z-index: 8;
 			display: flex;
-			align-items: center;
-			gap: 0.45rem;
-			padding: 0.45rem 0.65rem;
-			background: linear-gradient(to bottom, rgba(11, 13, 16, 0.92), rgba(11, 13, 16, 0));
+			gap: 0.85rem;
+			opacity: 0;
 			pointer-events: none;
+			transition: opacity 0.15s ease;
 		}
-		.host > * { pointer-events: auto; }
-		.host .brand {
-			color: #4fa3ff;
-			font-size: 0.78rem;
-			letter-spacing: 0.06em;
-			text-transform: uppercase;
-			margin-right: 0.35rem;
-			text-decoration: none;
+		html.doc.host-show .host {
+			opacity: 1;
 		}
-		.host button,
-		.host select,
-		.host a.ghost {
+		html.doc.host-show .host > * {
+			pointer-events: auto;
+		}
+		html.doc.empty .host { display: none; }
+		.host button {
 			appearance: none;
-			border: 1px solid #2a313c;
-			background: rgba(13, 16, 21, 0.85);
-			color: #e8ecf1;
+			border: 0;
+			background: transparent;
+			color: rgba(232, 236, 241, 0.55);
 			font: inherit;
-			font-size: 0.78rem;
-			padding: 0.28rem 0.55rem;
-			border-radius: 4px;
+			font-size: 0.8rem;
+			padding: 0;
 			cursor: pointer;
-			text-decoration: none;
 		}
-		.host button:hover,
-		.host select:hover,
-		.host a.ghost:hover {
-			border-color: #4fa3ff;
-			color: #fff;
+		.host button:hover { color: #fff; }
+		#host-more {
+			position: absolute;
+			right: 0.55rem;
+			bottom: 0.55rem;
+			z-index: 8;
+			appearance: none;
+			border: 0;
+			background: transparent;
+			color: rgba(232, 236, 241, 0.35);
+			font: inherit;
+			font-size: 1.1rem;
+			letter-spacing: 0.12em;
+			padding: 0.35rem;
+			cursor: pointer;
 		}
-		.host select { max-width: 9.5rem; }
-		.host .spacer { flex: 1; }
+		#host-more:hover { color: rgba(232, 236, 241, 0.8); }
+		html.embed #host-more,
+		html.edit #host-more,
+		html.doc.empty #host-more { display: none !important; }
 		#note {
 			position: absolute;
-			left: 0.65rem;
-			right: 0.65rem;
-			bottom: 0.65rem;
+			left: 0.55rem;
+			bottom: 0.55rem;
 			z-index: 8;
-			padding: 0.45rem 0.65rem;
-			border: 1px solid #2a313c;
-			border-radius: 4px;
-			background: rgba(13, 16, 21, 0.92);
+			max-width: min(28rem, calc(100% - 3rem));
+			padding: 0;
+			border: 0;
+			background: transparent;
 			font-size: 0.78rem;
-			color: #c9d2dc;
+			color: rgba(232, 236, 241, 0.55);
 		}
-		#note.warn { border-color: #b8892d; color: #f0d090; }
-		#note.err { border-color: #c44; color: #f88; }
+		#note.warn { color: #d4b06a; }
+		#note.err { color: #e88; }
 		#empty {
 			position: absolute;
 			inset: 0;
 			z-index: 7;
 			display: grid;
 			place-content: center;
-			gap: 0.75rem;
-			text-align: center;
 			background: #0b0d10;
 			padding: 2rem;
+			cursor: pointer;
 		}
 		#empty[hidden] { display: none !important; }
 		#empty p {
 			margin: 0;
-			color: #8b95a1;
-			font-size: 0.95rem;
-		}
-		#empty .hint {
-			font-size: 0.78rem;
-			color: #5c6570;
+			color: rgba(232, 236, 241, 0.4);
+			font-size: 0.9rem;
+			font-weight: 400;
 		}
 		#boot {
 			position: absolute;
@@ -167,10 +166,8 @@
 			place-items: center;
 			background: #0b0d10;
 			z-index: 10;
-			letter-spacing: 0.08em;
-			text-transform: uppercase;
-			font-size: 12px;
-			color: #888;
+			font-size: 0.8rem;
+			color: rgba(232, 236, 241, 0.35);
 		}
 		#boot[hidden] { display: none !important; }
 		#boot.error {
@@ -291,27 +288,13 @@
 		<canvas id="view" width="128" height="128"></canvas>
 		<div id="code-host" hidden></div>
 		<div class="host" id="host">
-			<a class="brand" href="https://rig.works/">RigPlayer</a>
 			<button type="button" id="host-open">Open</button>
 			<button type="button" id="host-share">Share</button>
-			<select id="host-examples" aria-label="Examples">
-				<option value="">Examples</option>
-				<option value="examples/jailbreak.rig">Jailbreak</option>
-				<option value="examples/demo-3d.json">Demo 3D</option>
-				<option value="examples/demo-gleditor.json">GLSL editor</option>
-				<option value="examples/portable-tool.json">Portable tool</option>
-				<option value="examples/ui-panel.json">LED panel</option>
-				<option value="examples/wave-kid.json">Wave kid</option>
-				<option value="examples/play-scene.json">Play scene</option>
-			</select>
-			<span class="spacer"></span>
-			<a class="ghost" id="host-edit" href="?edit=1">Edit</a>
 		</div>
+		<button type="button" id="host-more" aria-label="Show host controls" hidden>· · ·</button>
 		<div id="note" hidden></div>
 		<div id="empty" hidden>
-			<p>Drop a Rig document here</p>
-			<p class="hint">pixel / Lua · scene / GLSL — Open or pick an example</p>
-			<button type="button" id="empty-open">Open</button>
+			<p>Drop a document</p>
 		</div>
 		<div id="pad" hidden>
 			<div id="pad-dpad" aria-label="d-pad">
@@ -326,7 +309,7 @@
 			</div>
 		</div>
 		<input id="file" type="file" accept=".json,.rig,.rigz,.atlas,.png,.jpg,.jpeg,.webp,application/json,application/zip" multiple />
-		<div id="boot">Loading RigPlayer…</div>
+		<div id="boot">Loading…</div>
 	</div>
 	<script src="./vendor/fengari-web.js"></script>
 	<script type="module" src="./app.mjs"></script>

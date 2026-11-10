@@ -39,6 +39,7 @@ const padDpad = document.getElementById("pad-dpad");
 const boot = document.getElementById("boot");
 const noteEl = document.getElementById("note");
 const emptyEl = document.getElementById("empty");
+const hostMore = document.getElementById("host-more");
 const touchUi = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
 const embed = document.documentElement.classList.contains("embed");
 const editMode = document.documentElement.classList.contains("edit");
@@ -188,8 +189,12 @@ function syncNote() {
 }
 
 function syncEmpty() {
-	if (!emptyEl || !documentFirst) return;
-	emptyEl.hidden = !!currentMode;
+	if (!documentFirst) return;
+	const empty = !currentMode;
+	if (emptyEl) emptyEl.hidden = !empty;
+	document.documentElement.classList.toggle("empty", empty);
+	if (hostMore) hostMore.hidden = empty || !touchUi;
+	if (empty) document.documentElement.classList.remove("host-show");
 }
 
 function setShareBanner(level, message) {
@@ -317,12 +322,6 @@ function showPresent(parsed, sourceText) {
 	dock.setVisible(WIN.code, (parsed.codes || []).length > 0);
 	syncEditor();
 	syncEmpty();
-	if (parsed.skipped?.length) {
-		setShareBanner(
-			"soft",
-			`Skipped: ${parsed.skipped.slice(0, 6).join(", ")}${parsed.skipped.length > 6 ? "…" : ""}`,
-		);
-	}
 }
 
 async function loadText(text, label, extraMap = {}) {
@@ -675,20 +674,21 @@ fileInput?.addEventListener("change", () => {
 });
 
 document.getElementById("host-open")?.addEventListener("click", () => runCmd("open"));
-document.getElementById("empty-open")?.addEventListener("click", () => runCmd("open"));
 document.getElementById("host-share")?.addEventListener("click", () => runCmd("copy-link"));
-document.getElementById("host-examples")?.addEventListener("change", (e) => {
-	const v = e.target?.value;
-	if (!v) return;
-	location.search = `?src=${encodeURIComponent(v)}`;
+emptyEl?.addEventListener("click", () => runCmd("open"));
+hostMore?.addEventListener("click", () => {
+	document.documentElement.classList.toggle("host-show");
 });
-{
-	const editLink = document.getElementById("host-edit");
-	if (editLink && documentFirst) {
-		const u = new URL(location.href);
-		u.searchParams.set("edit", "1");
-		editLink.href = u.pathname + u.search + u.hash;
-	}
+if (documentFirst && !touchUi) {
+	window.addEventListener(
+		"pointermove",
+		(e) => {
+			if (!currentMode) return;
+			const show = e.clientY < 48 || document.getElementById("host")?.contains(e.target);
+			document.documentElement.classList.toggle("host-show", show);
+		},
+		{ passive: true },
+	);
 }
 
 const isFileDrag = (e) => Array.from(e.dataTransfer?.types || []).includes("Files");
