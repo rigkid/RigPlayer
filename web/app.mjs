@@ -5,6 +5,8 @@
 import { parsePlayDocument, mountPlayer } from "./play.mjs";
 import { validateDocument } from "./validate.mjs";
 import { parseDocumentText, mountViewer, documentWantsShaderPreview } from "./view/viewer.mjs";
+import { isSpineDocument, spineToRig } from "./view/spine.mjs";
+import { isRigzName, readRigz, writeRigz, bytesToDataUrl, mimeForName } from "./view/zip.mjs";
 import { createCodeEditor } from "./view/editor.mjs";
 import {
 	assessDocSize,
@@ -82,9 +84,45 @@ let currentReport = null;
 /** @type {"play"|"present"|""} */
 let currentMode = "";
 
-const presentPrefs = { shading: "flat", sphereResolution: 24 };
+const presentPrefs = { shading: "flat", sphereResolution: 24, imageMap: {}, assetBase: "" };
+/** @type {Record<string, Uint8Array>} */
+let currentImageBytes = {};
 
-let statusLine = "Ready — drop a .rig / .json";
+function rememberImageBytes(path, bytes) {
+	if (!path || !bytes) return;
+	currentImageBytes[path] = bytes;
+	currentImageBytes[String(path).split(/[/\\]/).pop()] = bytes;
+}
+
+function bytesFromDataUrl(url) {
+	const m = /^data:[^;]+;base64,(.+)$/.exec(url || "");
+	if (!m) return null;
+	const bin = atob(m[1]);
+	const out = new Uint8Array(bin.length);
+	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+	return out;
+}
+
+function harvestEmbeddedImageBytes() {
+	const embedded = globalThis.__RIGPLAYER_IMAGES__ || {};
+	for (const [name, url] of Object.entries(embedded)) {
+		if (currentImageBytes[name]) continue;
+		const bytes = bytesFromDataUrl(url);
+		if (bytes) rememberImageBytes(name, bytes);
+	}
+}
+
+function setAssetContext(label, extraMap = {}) {
+	const embedded = globalThis.__RIGPLAYER_IMAGES__ || {};
+	presentPrefs.imageMap = { ...embedded, ...extraMap };
+	presentPrefs.assetBase = "";
+	if (typeof label === "string" && /[/\\]/.test(label) && !/^(blob:|data:)/i.test(label)) {
+		presentPrefs.assetBase = label.replace(/[^/\\]+$/, "");
+	}
+	harvestEmbeddedImageBytes();
+}
+
+let statusLine = "Ready — drop a .rig / .rigz / .json";
 let menuOpen = "";
 let banner = "";
 let bannerLevel = "";
@@ -245,7 +283,8 @@ function showPresent(parsed, sourceText) {
 	syncEditor();
 }
 
-async function loadText(text, label) {
+async function loadText(text, label, extraMap = {}) {
+	setAssetContext(label, extraMap);
 	const report = validateDocument(text);
 	currentReport = report;
 	const issues = report?.issues || [];
@@ -306,15 +345,117 @@ async function loadText(text, label) {
 	}
 }
 
-async function loadFile(file) {
-	await loadText(await file.text(), file.name);
+function collectSaveImages() {
+	harvestEmbeddedImageBytes();
+	for (const [name, url] of Object.entries(presentPrefs.imageMap || {})) {
+		if (currentImageBytes[name]) continue;
+		const bytes = bytesFromDataUrl(url);
+		if (bytes) rememberImageBytes(name, bytes);
+	}
+	const data = {};
+	for (const [name, bytes] of Object.entries(currentImageBytes)) {
+		const base = String(name).split(/[/\\]/).pop();
+		if (!base || data[base]) continue;
+		if (!/\.(png|jpe?g|webp)$/i.test(base)) continue;
+		data[base] = bytes;
+	}
+	return data;
+}
+
+async function saveCurrentRigz() {
+	if (!currentText) {
+		setShareBanner("hard", "Nothing loaded to save.");
+		return;
+	}
+	const zip = writeRigz(currentText, collectSaveImages());
+	downloadBlob(
+		`${currentTitle || "document"}.rigz`,
+		new Blob([zip], { type: "application/zip" })
+	);
+	setShareBanner("ok", "Saved .rigz (document + images).");
+}
+
+function downloadBlob(name, blob) {
+	const a = document.createElement("a");
+	a.href = URL.createObjectURL(blob);
+	a.download = name;
+	a.click();
+	URL.revokeObjectURL(a.href);
+}
+
+function downloadText(name, text, type = "application/json") {
+	downloadBlob(name, new Blob([text], { type }));
+}
+
+async function extrasToImages(extras) {
+	const imageMap = {};
+	let atlasText = "";
+	for (const f of extras) {
+		const name = f.name || "";
+		if (/\.atlas$/i.test(name)) {
+			atlasText = await f.text();
+			continue;
+		}
+		if (!/\.(png|jpe?g|webp)$/i.test(name)) continue;
+		const bytes = new Uint8Array(await f.arrayBuffer());
+		const base = name.split(/[/\\]/).pop();
+		rememberImageBytes(base, bytes);
+		const url = URL.createObjectURL(new Blob([bytes], { type: mimeForName(name) }));
+		imageMap[base] = url;
+		imageMap[name] = url;
+	}
+	return { imageMap, atlasText };
+}
+
+function rememberPackImages(data, imageMap) {
+	for (const [rel, bytes] of Object.entries(data || {})) {
+		rememberImageBytes(rel, bytes);
+		const url = bytesToDataUrl(bytes, mimeForName(rel));
+		imageMap[rel] = url;
+		imageMap[rel.split(/[/\\]/).pop()] = url;
+	}
+}
+
+async function loadFile(file, extras = []) {
+	currentImageBytes = {};
+	const { imageMap, atlasText } = await extrasToImages(extras);
+	if (isRigzName(file.name)) {
+		const pack = await readRigz(await file.arrayBuffer());
+		rememberPackImages(pack.data, imageMap);
+		await loadText(pack.jsonText, file.name, imageMap);
+		return;
+	}
+	const text = await file.text();
+	let obj = null;
+	try {
+		obj = JSON.parse(text);
+	} catch {
+		obj = null;
+	}
+	if (obj && isSpineDocument(obj)) {
+		const doc = spineToRig(obj, {
+			title: (file.name || "character").replace(/\.json$/i, ""),
+			atlas: atlasText || globalThis.__RIGPLAYER_ATLAS__ || "",
+		});
+		await loadText(JSON.stringify(doc, null, "\t"), file.name, imageMap);
+		return;
+	}
+	await loadText(text, file.name, imageMap);
 }
 
 const embeddedExamples = globalThis.__RIGPLAYER_EXAMPLES__;
 
 async function tryFetch(urls, name) {
 	if (name && embeddedExamples && Object.prototype.hasOwnProperty.call(embeddedExamples, name)) {
-		await loadText(embeddedExamples[name], name);
+		const packed = embeddedExamples[name];
+		if (isRigzName(name) && typeof packed !== "string") {
+			const pack = await readRigz(packed);
+			const imageMap = {};
+			rememberPackImages(pack.data, imageMap);
+			await loadText(pack.jsonText, name, imageMap);
+			return { ok: true, attempts: [] };
+		}
+		await loadText(typeof packed === "string" ? packed : new TextDecoder().decode(packed), name);
 		return { ok: true, attempts: [] };
 	}
 	const attempts = [];
@@ -325,7 +466,14 @@ async function tryFetch(urls, name) {
 				attempts.push(`${url} — HTTP ${r.status}`);
 				continue;
 			}
-			await loadText(await r.text(), url);
+			if (isRigzName(url) || isRigzName(name)) {
+				const pack = await readRigz(await r.arrayBuffer());
+				const imageMap = {};
+				rememberPackImages(pack.data, imageMap);
+				await loadText(pack.jsonText, url, imageMap);
+			} else {
+				await loadText(await r.text(), url);
+			}
 			return { ok: true, attempts };
 		} catch (err) {
 			attempts.push(`${url} — ${err.message || err}`);
@@ -415,6 +563,16 @@ function runCmd(cmd) {
 		case "copy-link":
 			void copyShareLink();
 			break;
+		case "save-rig":
+			if (!currentText) {
+				setShareBanner("hard", "Nothing loaded to save.");
+				break;
+			}
+			downloadText(`${currentTitle || "document"}.rig`, currentText);
+			break;
+		case "save-rigz":
+			void saveCurrentRigz();
+			break;
 		case "save-local":
 			saveCurrentLocal();
 			break;
@@ -439,6 +597,12 @@ function runCmd(cmd) {
 		case "ex-ui":
 			location.search = "?src=examples/ui-panel.json";
 			break;
+		case "ex-wave":
+			location.search = "?src=examples/wave-kid.json";
+			break;
+		case "ex-walk":
+			location.search = "?src=examples/play-scene.json";
+			break;
 		case "fullscreen":
 			if (document.fullscreenElement) void document.exitFullscreen();
 			else void document.documentElement.requestFullscreen();
@@ -459,8 +623,12 @@ function runCmd(cmd) {
 }
 
 fileInput?.addEventListener("change", () => {
-	const f = fileInput.files?.[0];
-	if (f) void loadFile(f);
+	const files = Array.from(fileInput.files || []);
+	const json =
+		files.find((f) => /\.rigz$/i.test(f.name)) ||
+		files.find((f) => /\.(json|rig)$/i.test(f.name)) ||
+		files[0];
+	if (json) void loadFile(json, files.filter((f) => f !== json));
 	fileInput.value = "";
 });
 
@@ -473,8 +641,12 @@ const isFileDrag = (e) => Array.from(e.dataTransfer?.types || []).includes("File
 });
 window.addEventListener("drop", (e) => {
 	e.preventDefault();
-	const f = e.dataTransfer?.files?.[0];
-	if (f) void loadFile(f);
+	const files = Array.from(e.dataTransfer?.files || []);
+	const json =
+		files.find((f) => /\.rigz$/i.test(f.name)) ||
+		files.find((f) => /\.(json|rig)$/i.test(f.name)) ||
+		files[0];
+	if (json) void loadFile(json, files.filter((f) => f !== json));
 });
 
 // --- Touch gamepad (phones / tablets) -------------------------------------
@@ -609,6 +781,8 @@ function menusForFrame() {
 			label: "File",
 			items: [
 				{ id: "open", label: "Open..." },
+				{ id: "save-rigz", label: "Save .rigz" },
+				{ id: "save-rig", label: "Save .rig" },
 				{ id: "copy-link", label: "Copy link" },
 				{ id: "save-local", label: "Save local" },
 				{ id: "restore-local", label: "Restore local", disabled: !hasLocal },
@@ -623,6 +797,8 @@ function menusForFrame() {
 				{ id: "ex-glsl", label: "GLSL editor" },
 				{ id: "ex-tool", label: "Portable tool" },
 				{ id: "ex-ui", label: "LED panel" },
+				{ id: "ex-wave", label: "Wave kid" },
+				{ id: "ex-walk", label: "Play scene" },
 			],
 		},
 		{
@@ -874,7 +1050,21 @@ async function bootFromUrl() {
 
 	if (typeof inlineDoc === "string" && inlineDoc.length) {
 		flashStatus("Loading document…");
-		await loadText(inlineDoc, "inline");
+		let obj = null;
+		try {
+			obj = JSON.parse(inlineDoc);
+		} catch {
+			obj = null;
+		}
+		if (obj && isSpineDocument(obj)) {
+			const doc = spineToRig(obj, {
+				title: "character",
+				atlas: globalThis.__RIGPLAYER_ATLAS__ || "",
+			});
+			await loadText(JSON.stringify(doc, null, "\t"), "inline");
+		} else {
+			await loadText(inlineDoc, "inline");
+		}
 	} else if (docParam) {
 		flashStatus("Decoding ?doc=…");
 		try {

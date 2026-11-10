@@ -4,7 +4,31 @@
 #include <nlohmann/json.hpp>
 #include <sstream>
 
+static bool endsWithCi(const std::string& s, const char* ext) {
+	const size_t n = std::char_traits<char>::length(ext);
+	if (s.size() < n) {
+		return false;
+	}
+	for (size_t i = 0; i < n; ++i) {
+		char a = s[s.size() - n + i];
+		char b = ext[i];
+		if (a >= 'A' && a <= 'Z') {
+			a = static_cast<char>(a - 'A' + 'a');
+		}
+		if (b >= 'A' && b <= 'Z') {
+			b = static_cast<char>(b - 'A' + 'a');
+		}
+		if (a != b) {
+			return false;
+		}
+	}
+	return true;
+}
+
 DocKind classifyRigDocumentFile(const std::string& path) {
+	if (endsWithCi(path, ".rigz")) {
+		return DocKind::Present;
+	}
 	std::ifstream in(path);
 	if (!in) {
 		return DocKind::Unknown;
@@ -16,6 +40,14 @@ DocKind classifyRigDocumentFile(const std::string& path) {
 		doc = nlohmann::json::parse(ss.str());
 	} catch (...) {
 		return DocKind::Unknown;
+	}
+	if (doc.contains("skeleton") && doc["skeleton"].is_object() &&
+		doc["skeleton"].contains("spine")) {
+		return DocKind::Present;
+	}
+	if (doc.contains("bones") && doc["bones"].is_array() && doc.contains("slots") &&
+		doc.contains("skins")) {
+		return DocKind::Present;
 	}
 	if (!doc.contains("entities") || !doc["entities"].is_array()) {
 		return DocKind::Unknown;

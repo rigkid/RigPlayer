@@ -85,6 +85,24 @@ if(TARGET RigPlayer)
 				"${CMAKE_CURRENT_SOURCE_DIR}/examples/demo-gleditor.json"
 				"$<TARGET_FILE_DIR:RigPlayer>/data/play/demo-gleditor.json"
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/wave-arm.json"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/wave-arm.json"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/wave-arm-plate.png"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/wave-arm-plate.png"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/play-scene.json"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/play-scene.json"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/wave-kid.json"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/wave-kid.json"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/wave-kid.png"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/wave-kid.png"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${CMAKE_CURRENT_SOURCE_DIR}/examples/wave-kid.rigz"
+				"$<TARGET_FILE_DIR:RigPlayer>/data/play/wave-kid.rigz"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 				"${CMAKE_CURRENT_SOURCE_DIR}/dist/rigplayer.html"
 				"$<TARGET_FILE_DIR:RigPlayer>/data/web/rigplayer.html"
 		COMMENT "Deploy Rig documents + web present host next to RigPlayer"

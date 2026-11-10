@@ -43,14 +43,24 @@ jobs:
           # from player.rig.works — ?src=examples/demo-3d.json 404'd.
           cp examples/*.rig _site/examples/
           cp examples/*.json _site/examples/
+          cp examples/*.png _site/examples/
+          cp examples/*.rigz _site/examples/
           mkdir -p _site/web/examples
           cp examples/*.rig _site/web/examples/
           cp examples/*.json _site/web/examples/
+          cp examples/*.png _site/web/examples/
+          cp examples/*.rigz _site/web/examples/
           test -f _site/examples/jailbreak.rig
           test -f _site/examples/demo-3d.json
           test -f _site/examples/demo-gleditor.json
           test -f _site/examples/portable-tool.json
           test -f _site/examples/ui-panel.json
+          test -f _site/examples/wave-arm.json
+          test -f _site/examples/play-scene.json
+          test -f _site/examples/wave-arm-plate.png
+          test -f _site/examples/wave-kid.json
+          test -f _site/examples/wave-kid.png
+          test -f _site/examples/wave-kid.rigz
           cp llms.txt _site/llms.txt
           cp docs/port-map.md docs/ai-share.md _site/docs/
           printf 'player.rig.works\n' > _site/CNAME

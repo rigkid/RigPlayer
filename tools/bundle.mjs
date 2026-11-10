@@ -38,7 +38,10 @@ const tuiDockSrc = read("imtui/dock.mjs");
 const tuiPanelsSrc = read("imtui/panels.mjs");
 const tuiHostSrc = read("imtui/host.mjs");
 const tuiIndexSrc = read("imtui/index.mjs");
+const viewAnimSrc = read("view/anim.mjs");
 const viewParseSrc = read("view/parse.mjs");
+const viewSpineSrc = read("view/spine.mjs");
+const viewZipSrc = read("view/zip.mjs");
 const viewShaderSrc = read("view/shader.mjs");
 const viewEditorSrc = read("view/editor.mjs");
 const viewViewerSrc = read("view/viewer.mjs");
@@ -51,10 +54,25 @@ const EXAMPLE_NAMES = [
 	"demo-gleditor.json",
 	"portable-tool.json",
 	"ui-panel.json",
+	"wave-arm.json",
+	"wave-kid.json",
+	"play-scene.json",
 ];
 const examples = {};
 for (const name of EXAMPLE_NAMES) {
 	examples[`examples/${name}`] = fs.readFileSync(path.join(examplesDir, name), "utf8");
+}
+const images = {};
+for (const name of fs.readdirSync(examplesDir).filter((n) => /\.(png|jpe?g|webp)$/i.test(n))) {
+	const buf = fs.readFileSync(path.join(examplesDir, name));
+	const mime = /\.webp$/i.test(name)
+		? "image/webp"
+		: /\.jpe?g$/i.test(name)
+			? "image/jpeg"
+			: "image/png";
+	const url = `data:${mime};base64,${buf.toString("base64")}`;
+	images[name] = url;
+	images[`examples/${name}`] = url;
 }
 
 const styleMatch = indexHtml.match(/<style>([\s\S]*?)<\/style>/);
@@ -66,15 +84,22 @@ const bodyChrome = bodyMatch
 
 const boot = `
 globalThis.__RIGPLAYER_EXAMPLES__ = ${JSON.stringify(examples)};
+globalThis.__RIGPLAYER_IMAGES__ = ${JSON.stringify(images)};
 const shareUrl = URL.createObjectURL(new Blob([${JSON.stringify(shareSrc)}], { type: "text/javascript" }));
 const audioUrl = URL.createObjectURL(new Blob([${JSON.stringify(audioSrc)}], { type: "text/javascript" }));
 const threeUrl = URL.createObjectURL(new Blob([${JSON.stringify(threeSrc)}], { type: "text/javascript" }));
-const viewParseUrl = URL.createObjectURL(new Blob([${JSON.stringify(viewParseSrc)}], { type: "text/javascript" }));
+const viewAnimUrl = URL.createObjectURL(new Blob([${JSON.stringify(viewAnimSrc)}], { type: "text/javascript" }));
+const viewParseBody = ${JSON.stringify(viewParseSrc)}.replace(/from ["']\\.\\/anim\\.mjs["']/, \`from "\${viewAnimUrl}"\`);
+const viewParseUrl = URL.createObjectURL(new Blob([viewParseBody], { type: "text/javascript" }));
+const viewSpineBody = ${JSON.stringify(viewSpineSrc)}.replace(/from ["']\\.\\/anim\\.mjs["']/, \`from "\${viewAnimUrl}"\`);
+const viewSpineUrl = URL.createObjectURL(new Blob([viewSpineBody], { type: "text/javascript" }));
+const viewZipUrl = URL.createObjectURL(new Blob([${JSON.stringify(viewZipSrc)}], { type: "text/javascript" }));
 const viewEditorUrl = URL.createObjectURL(new Blob([${JSON.stringify(viewEditorSrc)}], { type: "text/javascript" }));
 const viewShaderUrl = URL.createObjectURL(new Blob([${JSON.stringify(viewShaderSrc)}], { type: "text/javascript" }));
 const viewViewerBody = ${JSON.stringify(viewViewerSrc)}
 	.replace(/from ["']\\.\\.\\/vendor\\/three\\.module\\.js["']/, \`from "\${threeUrl}"\`)
 	.replace(/from ["']\\.\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`)
+	.replace(/from ["']\\.\\/anim\\.mjs["']/, \`from "\${viewAnimUrl}"\`)
 	.replace(/from ["']\\.\\/shader\\.mjs["']/, \`from "\${viewShaderUrl}"\`);
 const viewViewerUrl = URL.createObjectURL(new Blob([viewViewerBody], { type: "text/javascript" }));
 const tuiEngineUrl = URL.createObjectURL(new Blob([${JSON.stringify(tuiEngineSrc)}], { type: "text/javascript" }));
@@ -106,7 +131,9 @@ const appBody = ${JSON.stringify(appSrc)}
 	.replace(/from ["']\\.\\/imtui\\/index\\.mjs["']/, \`from "\${tuiUrl}"\`)
 	.replace(/from ["']\\.\\/view\\/parse\\.mjs["']/, \`from "\${viewParseUrl}"\`)
 	.replace(/from ["']\\.\\/view\\/viewer\\.mjs["']/, \`from "\${viewViewerUrl}"\`)
-	.replace(/from ["']\\.\\/view\\/editor\\.mjs["']/, \`from "\${viewEditorUrl}"\`);
+	.replace(/from ["']\\.\\/view\\/editor\\.mjs["']/, \`from "\${viewEditorUrl}"\`)
+	.replace(/from ["']\\.\\/view\\/spine\\.mjs["']/, \`from "\${viewSpineUrl}"\`)
+	.replace(/from ["']\\.\\/view\\/zip\\.mjs["']/, \`from "\${viewZipUrl}"\`);
 const appUrl = URL.createObjectURL(new Blob([appBody], { type: "text/javascript" }));
 await import(appUrl);
 `;

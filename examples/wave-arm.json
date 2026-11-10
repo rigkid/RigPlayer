@@ -1,0 +1,113 @@
+{
+	"rig": "1.0.0",
+	"document": {
+		"title": "Wave arm",
+		"defaultUnit": "px"
+	},
+	"entities": [
+		{
+			"id": "root",
+			"components": {
+				"rig.meta.named": { "name": "root", "stableId": "root" },
+				"rig.spatial.transform": {
+					"position": [0, 0, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.skeleton": { "root": "root", "bones": ["root", "arm"] },
+				"rig.anim.bind": {
+					"position": [0, 0, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "arm",
+			"components": {
+				"rig.meta.named": { "name": "arm", "stableId": "arm" },
+				"rig.spatial.relationship": { "parent": "root" },
+				"rig.spatial.transform": {
+					"position": [24, 0, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.bind": {
+					"position": [24, 0, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "plate",
+			"components": {
+				"rig.media.asset_ref": { "kind": "image", "path": "wave-arm-plate.png" }
+			}
+		},
+		{
+			"id": "torso",
+			"components": {
+				"rig.meta.named": { "name": "torso", "stableId": "torso" },
+				"rig.spatial.relationship": { "parent": "root" },
+				"rig.spatial.transform": { "position": [0, 28, 0] },
+				"rig.geometry.mesh": {
+					"positions": [-18, -22, 0, 18, -22, 0, 18, 22, 0, -18, 22, 0],
+					"texcoords": [0, 1, 1, 1, 1, 0, 0, 0],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "plate", "albedoRgb": [0.2, 0.45, 0.85] },
+				"rig.paint.fill_stroke": { "fillRgba": [0.2, 0.45, 0.85, 1] },
+				"rig.spatial.layer": { "order": 0 }
+			}
+		},
+		{
+			"id": "sleeve",
+			"components": {
+				"rig.meta.named": { "name": "sleeve", "stableId": "sleeve" },
+				"rig.spatial.relationship": { "parent": "root" },
+				"rig.spatial.transform": { "position": [0, 0, 0] },
+				"rig.geometry.mesh": {
+					"positions": [0, -8, 0, 48, -8, 0, 48, 8, 0, 0, 8, 0],
+					"texcoords": [0, 1, 1, 1, 1, 0, 0, 0],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoRgb": [0.95, 0.55, 0.2] },
+				"rig.paint.fill_stroke": { "fillRgba": [0.95, 0.55, 0.2, 1] },
+				"rig.spatial.layer": { "order": 1 },
+				"rig.anim.skin": {
+					"skeleton": "root",
+					"joints": ["root", "arm"],
+					"inverseBind": [
+						1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+						1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -24, 0, 0, 1
+					],
+					"jointIndices": [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+					"jointWeights": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
+				}
+			}
+		},
+		{
+			"id": "wave",
+			"components": {
+				"rig.meta.named": { "name": "wave", "stableId": "wave" },
+				"rig.anim.clip": { "duration": 1.2, "wrap": "loop" }
+			}
+		},
+		{
+			"id": "wave-rot",
+			"components": {
+				"rig.anim.track": {
+					"clip": "wave",
+					"target": "arm",
+					"propertyKey": "rotation",
+					"times": [0, 0.6, 1.2],
+					"values": [0, 0, 0, 1, 0, 0, 0.34202, 0.939693, 0, 0, 0, 1],
+					"stride": 4
+				}
+			}
+		}
+	]
+}

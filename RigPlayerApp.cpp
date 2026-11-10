@@ -1,6 +1,7 @@
 #include "RigPlayerApp.h"
 
 #include "DocKind.h"
+#include "ZipIo.h"
 
 #include "core/RigKitEngine.h"
 #include "core/pack/MPack.h"
@@ -14,9 +15,11 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
+#include <unordered_map>
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -110,7 +113,7 @@ void RigPlayerApp::setup() {
 
 	if (auto shellPack = packs->getPack<rigkit::rigDocumentShell>()) {
 		auto& shell = shellPack->shell();
-		shell.setOpenFilters({".rig", ".json"});
+		shell.setOpenFilters({".rig", ".json", ".rigz"});
 		shell.setOnOpenPath([this](const std::string& path) { m_pendingPath = path; });
 		if (auto* ui = m_engine->getUiManager()) {
 			// Player: File → Open + dock passthrough; no Edit Mode / scene panels.
@@ -123,7 +126,7 @@ void RigPlayerApp::setup() {
 	}
 	loadDocument(m_pendingPath);
 	m_pendingPath.clear();
-	spdlog::info("RigPlayer ready — full RigWorks host. File → Open a .rig / .json document.");
+	spdlog::info("RigPlayer ready — full RigWorks host. File → Open a .rig / .json / .rigz document.");
 }
 
 void RigPlayerApp::loadPresentDocument(const std::string& path) {
@@ -143,16 +146,68 @@ void RigPlayerApp::loadPresentDocument(const std::string& path) {
 	shellSs << shellIn.rdbuf();
 	std::string html = shellSs.str();
 
-	std::ifstream docIn(path);
-	if (!docIn) {
-		spdlog::error("RigPlayer — cannot read {}", path);
-		return;
+	std::string docText;
+	nlohmann::json images = nlohmann::json::object();
+	std::string atlasText;
+	const bool isRigz = path.size() >= 5 &&
+						(path.compare(path.size() - 5, 5, ".rigz") == 0 ||
+						 path.compare(path.size() - 5, 5, ".RIGZ") == 0);
+	if (isRigz) {
+		std::ifstream bin(path, std::ios::binary);
+		if (!bin) {
+			spdlog::error("RigPlayer — cannot read {}", path);
+			return;
+		}
+		const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(bin)),
+										 std::istreambuf_iterator<char>());
+		std::unordered_map<std::string, std::vector<uint8_t>> files;
+		std::string zipErr;
+		if (!readZipStore(bytes, files, zipErr)) {
+			spdlog::error("RigPlayer — {}", zipErr);
+			return;
+		}
+		for (const auto& [name, data] : files) {
+			if (name.find('/') == std::string::npos && name.size() > 4 &&
+				name.compare(name.size() - 4, 4, ".rig") == 0) {
+				docText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+			} else if (name.rfind("data/", 0) == 0) {
+				const std::string rel = name.substr(5);
+				images[rel] = guessImageDataUrl(rel, data);
+				const auto slash = rel.find_last_of('/');
+				if (slash != std::string::npos) {
+					images[rel.substr(slash + 1)] = images[rel];
+				}
+			}
+		}
+		if (docText.empty()) {
+			spdlog::error("RigPlayer — .rigz has no root .rig");
+			return;
+		}
+	} else {
+		std::ifstream docIn(path);
+		if (!docIn) {
+			spdlog::error("RigPlayer — cannot read {}", path);
+			return;
+		}
+		std::ostringstream docSs;
+		docSs << docIn.rdbuf();
+		docText = docSs.str();
+		std::unordered_map<std::string, std::string> sidecar;
+		collectSidecarFiles(path, sidecar, atlasText);
+		for (const auto& [name, url] : sidecar) {
+			images[name] = url;
+		}
 	}
-	std::ostringstream docSs;
-	docSs << docIn.rdbuf();
-	const nlohmann::json asJsString = docSs.str();
-	const std::string inject =
-		"<script>globalThis.__RIGPLAYER_INLINE_DOC__=" + asJsString.dump() + ";</script>\n";
+	const nlohmann::json asJsString = docText;
+	const nlohmann::json atlasJs = atlasText;
+	std::string inject = "<script>globalThis.__RIGPLAYER_INLINE_DOC__=" + asJsString.dump() + ";";
+	if (!images.empty()) {
+		inject += "globalThis.__RIGPLAYER_IMAGES__=" + images.dump() + ";";
+	}
+	if (!atlasText.empty()) {
+		inject += "globalThis.__RIGPLAYER_ATLAS__=" + atlasJs.dump() + ";";
+	}
+	inject += "</script>\n";
 
 	const std::string marker = "<script type=\"module\">";
 	const auto at = html.find(marker);

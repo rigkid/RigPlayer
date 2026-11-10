@@ -22,7 +22,7 @@ Validator ([`web/validate.mjs`](web/validate.mjs)) knows the union of pixel/Lua 
 | Fallback | https://rigkid.github.io/RigPlayer/ |
 | Offline | [`dist/rigplayer.html`](dist/rigplayer.html) — double-click, no server needed |
 
-`tools/bundle.mjs` inlines examples (Jailbreak, demo-3d, demo-gleditor) for `file://` offline use.
+`tools/bundle.mjs` inlines examples (Jailbreak, demo-3d, wave-kid, play-scene) for `file://` offline use.
 
 ```bash
 npm run serve
@@ -59,6 +59,8 @@ No path → loads deployed `data/play/jailbreak.rig`.
 | Jailbreak (pixel/Lua) | `examples/jailbreak.rig` |
 | Demo 3D (scene) | `examples/demo-3d.json` |
 | GLSL editor | `examples/demo-gleditor.json` |
+| Wave kid | `examples/wave-kid.json` / `wave-kid.rigz` |
+| Play scene walk | `examples/play-scene.json` |
 
 Web audio: `sfx` / `music` from `rig.music.pattern` (click or key once to unlock). Desktop pixel runtime is still silent for audio. `cartdata` is in-memory only.
 

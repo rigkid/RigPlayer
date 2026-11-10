@@ -1,12 +1,15 @@
 /**
- * Pure Contract document parser for RigViewer.
+ * Pure Contract document parser for RigPlayer present.
  * No Three.js — safe to import from Node smoke tests.
  *
  * SUDE mapping for the web fulfillment:
  *   Setup — parseEnvelope / load JSON
+ *   Update — tickModulators + tickClips
  *   Draw  — expandDrawables (geometry + paint + world transform)
- *   (no Update — still frame unless the host animates)
  */
+
+import { tickClips } from "./anim.mjs";
+export { tickClips, wrapTime, sampleTrack, poseSkin, pickActiveClip } from "./anim.mjs";
 
 const KNOWN_PASS = new Set([
 	"rig.meta.named",
@@ -38,7 +41,15 @@ const KNOWN_PASS = new Set([
 	"rig.ui.action",
 	"rig.render.material",
 	"rig.render.light",
+	"rig.render.sprite",
 	"rig.media.code",
+	"rig.media.asset_ref",
+	"rig.anim.skeleton",
+	"rig.anim.bind",
+	"rig.anim.skin",
+	"rig.anim.clip",
+	"rig.anim.track",
+	"rig.anim.blend",
 ]);
 
 const GEOMETRY_KEYS = [
@@ -249,9 +260,21 @@ function meshPositions(mesh) {
 	// Authored normals must be parallel to positions; mismatched data is dropped.
 	let normals = vec3List(mesh.normals);
 	if (normals && normals.length !== verts.length) normals = null;
+	let texcoords = null;
+	const uv = mesh.texcoords;
+	if (uv?.length) {
+		texcoords = [];
+		if (typeof uv[0] === "number") {
+			for (let i = 0; i + 1 < uv.length; i += 2) texcoords.push([uv[i], uv[i + 1]]);
+		} else {
+			for (const p of uv) texcoords.push([p[0] ?? 0, p[1] ?? 0]);
+		}
+		if (texcoords.length !== verts.length) texcoords = null;
+	}
 	return {
 		verts,
 		normals,
+		texcoords,
 		mode: mesh.mode || "triangles",
 		indices: mesh.indices || null,
 		faceColors: mesh.faceColors || null,
@@ -286,6 +309,11 @@ export function parseDocument(doc) {
 	const materials = {};
 	const lights = [];
 	const codes = [];
+	const clips = [];
+	const tracks = [];
+	const skins = [];
+	const blends = [];
+	const assets = {};
 	let minX = Infinity;
 	let minY = Infinity;
 	let maxX = -Infinity;
@@ -472,10 +500,60 @@ export function parseDocument(doc) {
 			materials[e.id] = {
 				id: e.id,
 				albedoRgb: m.albedoRgb || [0.8, 0.8, 0.8],
+				albedoMap: m.albedoMap || null,
 				metallic: m.metallic ?? 0,
 				roughness: m.roughness ?? 0.5,
 				emissive: m.emissive || [0, 0, 0],
 			};
+		}
+
+		if (c["rig.media.asset_ref"]) {
+			const a = c["rig.media.asset_ref"];
+			assets[e.id] = { id: e.id, kind: a.kind || "other", path: a.path || "" };
+		}
+
+		if (c["rig.anim.clip"]) {
+			const clip = c["rig.anim.clip"];
+			clips.push({
+				id: e.id,
+				name,
+				duration: clip.duration ?? 0,
+				wrap: clip.wrap || "once",
+			});
+		}
+
+		if (c["rig.anim.track"]) {
+			const trk = c["rig.anim.track"];
+			tracks.push({
+				id: e.id,
+				clip: trk.clip,
+				target: trk.target,
+				propertyKey: trk.propertyKey,
+				times: trk.times || [],
+				values: trk.values || [],
+				stride: trk.stride || 1,
+			});
+		}
+
+		if (c["rig.anim.skin"]) {
+			const sk = c["rig.anim.skin"];
+			skins.push({
+				meshId: e.id,
+				skeleton: sk.skeleton,
+				joints: sk.joints || [],
+				inverseBind: sk.inverseBind || [],
+				jointIndices: sk.jointIndices || [],
+				jointWeights: sk.jointWeights || [],
+			});
+		}
+
+		if (c["rig.anim.blend"]) {
+			const bl = c["rig.anim.blend"];
+			blends.push({
+				id: e.id,
+				root: bl.root,
+				nodes: bl.nodes || [],
+			});
 		}
 
 		if (c["rig.render.light"]) {
@@ -596,11 +674,44 @@ export function parseDocument(doc) {
 				kind: "mesh",
 				verts: mesh.verts.map(([x, y, z]) => [x, y, z ?? 0]),
 				normals: mesh.normals,
+				texcoords: mesh.texcoords,
 				mode: mesh.mode,
 				indices: mesh.indices,
 				faceColors: mesh.faceColors,
 				paint,
 				materialId: c["rig.render.material"] ? e.id : null,
+			});
+		}
+
+		if (c["rig.render.sprite"]) {
+			const spr = c["rig.render.sprite"];
+			const hw = 0.5;
+			const hh = 0.5;
+			expand(wx - hw, wy - hh, wz);
+			expand(wx + hw, wy + hh, wz);
+			geometryCount++;
+			drawables.push({
+				id: e.id,
+				name,
+				kind: "mesh",
+				verts: [
+					[-hw, -hh, 0],
+					[hw, -hh, 0],
+					[hw, hh, 0],
+					[-hw, hh, 0],
+				],
+				texcoords: [
+					[0, 1],
+					[1, 1],
+					[1, 0],
+					[0, 0],
+				],
+				indices: [0, 1, 2, 0, 2, 3],
+				mode: "triangles",
+				normals: null,
+				paint,
+				materialId: null,
+				albedoMap: spr.texture || null,
 			});
 		}
 
@@ -692,6 +803,12 @@ export function parseDocument(doc) {
 		materials,
 		lights,
 		codes,
+		clips,
+		tracks,
+		skins,
+		blends,
+		binds: structuredClone(transforms),
+		assets,
 		activeCodeId,
 		skipped: [...skipped].sort(),
 		bounds: { minX, minY, maxX, maxY, minZ, maxZ },

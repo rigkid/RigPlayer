@@ -52,7 +52,14 @@ export const PRESENT_KNOWN_KEYS = [
 	"rig.ui.action",
 	"rig.render.material",
 	"rig.render.light",
+	"rig.render.sprite",
 	"rig.media.code",
+	"rig.anim.skeleton",
+	"rig.anim.bind",
+	"rig.anim.skin",
+	"rig.anim.clip",
+	"rig.anim.track",
+	"rig.anim.blend",
 ];
 
 export const PLAYER_HOST_KEYS = [...new Set([...PLAY_KNOWN_KEYS, ...PRESENT_KNOWN_KEYS])];
@@ -66,6 +73,7 @@ const PRESENT_PREFIXES = [
 	"rig.render.",
 	"rig.paint.",
 	"rig.mod.",
+	"rig.anim.",
 	"rig.ui.",
 	"rig.interact.",
 ];

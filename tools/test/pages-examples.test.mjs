@@ -14,6 +14,8 @@ test("pages workflow copies .rig and .json examples", () => {
 	const yml = fs.readFileSync(path.join(root, ".github/workflows/pages.yml"), "utf8");
 	assert.match(yml, /cp examples\/\*\.rig _site\/examples\//);
 	assert.match(yml, /cp examples\/\*\.json _site\/examples\//);
+	assert.match(yml, /cp examples\/\*\.png _site\/examples\//);
+	assert.match(yml, /cp examples\/\*\.rigz _site\/examples\//);
 	assert.match(yml, /test -f _site\/examples\/demo-3d\.json/);
 	assert.match(yml, /test -f _site\/examples\/demo-gleditor\.json/);
 	assert.match(yml, /test -f _site\/examples\/portable-tool\.json/);

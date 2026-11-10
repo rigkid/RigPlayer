@@ -1,13 +1,14 @@
 /**
  * Three.js Draw fulfillment over parseDocument output.
  * Rig 2D is Y-down; the scene root is Y-flipped for orthographic framing.
- * Update-side: sampleLfo / tickModulators drive bound transforms each frame.
+ * Update-side: sampleLfo / tickModulators / tickClips drive transforms each frame.
  */
 import * as THREE from "../vendor/three.module.js";
-import { parseDocument, parseDocumentText, tickModulators, sampleLfo } from "./parse.mjs";
+import { parseDocument, parseDocumentText, tickModulators, tickClips, sampleLfo } from "./parse.mjs";
+import { poseSkin } from "./anim.mjs";
 import { mountShaderPreview, documentWantsShaderPreview } from "./shader.mjs";
 
-export { parseDocument, parseDocumentText, tickModulators, sampleLfo, documentWantsShaderPreview };
+export { parseDocument, parseDocumentText, tickModulators, tickClips, sampleLfo, documentWantsShaderPreview };
 
 function colorFromRgba(arr, fallback = 0xffffff) {
 	if (!arr || arr.length < 3) return new THREE.Color(fallback);
@@ -41,6 +42,11 @@ function meshGeometry(drawable) {
 	const geo = new THREE.BufferGeometry();
 	geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
 	if (drawable.indices?.length) geo.setIndex(drawable.indices);
+	if (drawable.texcoords?.length) {
+		const uvs = [];
+		for (const uv of drawable.texcoords) uvs.push(uv[0] ?? 0, uv[1] ?? 0);
+		geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+	}
 	if (drawable.normals?.length) {
 		const normals = [];
 		for (const n of drawable.normals) normals.push(n[0], n[1], n[2] ?? 0);
@@ -58,7 +64,38 @@ function sphereGeometry(radius, widthSegments, heightSegments) {
 	return new THREE.SphereGeometry(radius ?? 1, w, h);
 }
 
-function meshMaterial(drawable, parsed, lit, shading = "auto") {
+function assetUrl(parsed, entityId, prefs) {
+	if (!entityId) return null;
+	const asset = parsed.assets?.[entityId];
+	const path = asset?.path || "";
+	const base = path.split(/[/\\]/).pop();
+	if (prefs?.imageMap && path && prefs.imageMap[path]) return prefs.imageMap[path];
+	if (prefs?.imageMap && base && prefs.imageMap[base]) return prefs.imageMap[base];
+	if (prefs?.imageMap && prefs.imageMap[entityId]) return prefs.imageMap[entityId];
+	if (path && /^https?:|^blob:|^data:/.test(path)) return path;
+	if (path && prefs?.assetBase) {
+		const base = prefs.assetBase.endsWith("/") ? prefs.assetBase : `${prefs.assetBase}/`;
+		return base + path;
+	}
+	return path || null;
+}
+
+function applyAlbedoMap(mat, drawable, parsed, prefs) {
+	const mapId = drawable.albedoMap || parsed.materials?.[drawable.materialId]?.albedoMap;
+	const url = assetUrl(parsed, mapId, prefs);
+	if (!url || typeof THREE.TextureLoader !== "function") return;
+	const loader = new THREE.TextureLoader();
+	loader.load(url, (tex) => {
+		tex.colorSpace = THREE.SRGBColorSpace || tex.colorSpace;
+		tex.flipY = false;
+		mat.map = tex;
+		mat.transparent = true;
+		mat.needsUpdate = true;
+		prefs?.onTexture?.();
+	});
+}
+
+function meshMaterial(drawable, parsed, lit, shading = "auto", prefs = {}) {
 	const matData = drawable.materialId ? parsed.materials?.[drawable.materialId] : null;
 	// Contract default: no authored normals = flat (face) shading. Procedural
 	// primitives (sphere) always carry correct smooth normals, so "auto" rounds them.
@@ -67,7 +104,7 @@ function meshMaterial(drawable, parsed, lit, shading = "auto") {
 	if (lit || matData) {
 		const albedo = matData?.albedoRgb || drawable.paint?.fillRgba || [0.75, 0.75, 0.8];
 		const emissive = matData?.emissive || [0, 0, 0];
-		return new THREE.MeshStandardMaterial({
+		const mat = new THREE.MeshStandardMaterial({
 			color: colorFromRgba(albedo),
 			metalness: matData?.metallic ?? 0.1,
 			roughness: matData?.roughness ?? 0.55,
@@ -79,14 +116,19 @@ function meshMaterial(drawable, parsed, lit, shading = "auto") {
 			polygonOffsetFactor: 1,
 			polygonOffsetUnits: 1,
 		});
+		applyAlbedoMap(mat, drawable, parsed, prefs);
+		return mat;
 	}
-	return new THREE.MeshBasicMaterial({
-		color: colorFromRgba(drawable.paint?.fillRgba || [0.75, 0.75, 0.8]),
-		transparent: opacityFromRgba(drawable.paint?.fillRgba) < 1,
-		opacity: opacityFromRgba(drawable.paint?.fillRgba),
+	const fill = drawable.paint?.fillRgba || [0.75, 0.75, 0.8];
+	const mat = new THREE.MeshBasicMaterial({
+		color: colorFromRgba(fill),
+		transparent: opacityFromRgba(fill) < 1,
+		opacity: opacityFromRgba(fill),
 		side: THREE.DoubleSide,
 		depthWrite: false,
 	});
+	applyAlbedoMap(mat, drawable, parsed, prefs);
+	return mat;
 }
 
 function addPaintedMesh(group, geometry, paint, { line = false } = {}) {
@@ -161,6 +203,9 @@ export function mountViewer(canvas, parsed, prefs = {}) {
 		return mountShaderPreview(canvas, parsed);
 	}
 
+	const hooks = { invalidate: () => {} };
+	if (!prefs.onTexture) prefs = { ...prefs, onTexture: () => hooks.invalidate() };
+
 	const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
 	renderer.setClearColor(0x0b0d10, 1);
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -179,6 +224,8 @@ export function mountViewer(canvas, parsed, prefs = {}) {
 
 	const groups = new Map();
 	const transforms = parsed.transforms || {};
+	const skinned = [];
+	const restVerts = new Map();
 
 	for (const id of Object.keys(transforms)) {
 		ensureEntityGroup(groups, root, id);
@@ -216,7 +263,13 @@ export function mountViewer(canvas, parsed, prefs = {}) {
 				);
 			} else {
 				const lit = isPersp && (parsed.lights?.length > 0 || d.materialId);
-				group.add(new THREE.Mesh(geo, meshMaterial(d, parsed, lit, prefs.shading || "auto")));
+				const mesh = new THREE.Mesh(geo, meshMaterial(d, parsed, lit, prefs.shading || "auto", prefs));
+				group.add(mesh);
+				const skin = (parsed.skins || []).find((s) => s.meshId === d.id);
+				if (skin) {
+					restVerts.set(d.id, d.verts.map((v) => [v[0], v[1], v[2] ?? 0]));
+					skinned.push({ mesh, skin, drawable: d });
+				}
 			}
 		} else if (d.kind === "sphere") {
 			// Explicit per-entity segments win; otherwise fall back to the
@@ -225,7 +278,7 @@ export function mountViewer(canvas, parsed, prefs = {}) {
 			const h = d.heightSegments ?? Math.max(3, Math.round(w / 2));
 			const geo = sphereGeometry(d.radius, w, h);
 			const lit = isPersp && (parsed.lights?.length > 0 || d.materialId);
-			group.add(new THREE.Mesh(geo, meshMaterial(d, parsed, lit, prefs.shading || "auto")));
+			group.add(new THREE.Mesh(geo, meshMaterial(d, parsed, lit, prefs.shading || "auto", prefs)));
 		}
 	}
 
@@ -302,6 +355,7 @@ export function mountViewer(canvas, parsed, prefs = {}) {
 	const invalidate = () => {
 		needsRender = true;
 	};
+	hooks.invalidate = invalidate;
 	const { minX, minY, maxX, maxY, minZ = 0, maxZ = 0 } = parsed.bounds;
 	const cx = (minX + maxX) / 2;
 	const cy = (minY + maxY) / 2;
@@ -382,13 +436,15 @@ export function mountViewer(canvas, parsed, prefs = {}) {
 	ro?.observe(canvas);
 
 	const hasMods = (parsed.lfos?.length || 0) > 0;
+	const hasClips = (parsed.clips?.length || 0) > 0;
+	const hasSkin = skinned.length > 0;
 	const t0 = performance.now();
 	const getTime = () => (performance.now() - t0) / 1000;
 	let raf = 0;
 	const tick = () => {
 		raf = requestAnimationFrame(tick);
 		// Skip the whole frame when nothing animates and nothing changed.
-		if (!hasMods && !needsRender) return;
+		if (!hasMods && !hasClips && !hasSkin && !needsRender) return;
 		needsRender = false;
 		const t = getTime();
 		if (hasMods) {
@@ -402,7 +458,30 @@ export function mountViewer(canvas, parsed, prefs = {}) {
 				t
 			);
 		}
+		if (hasClips) {
+			tickClips(
+				{
+					clips: parsed.clips,
+					tracks: parsed.tracks,
+					blends: parsed.blends,
+					binds: parsed.binds,
+					transforms,
+				},
+				t
+			);
+		}
 		syncGroups();
+		for (const item of skinned) {
+			const rest = restVerts.get(item.drawable.id);
+			if (!rest) continue;
+			const posed = poseSkin(item.skin, rest, transforms);
+			const pos = item.mesh.geometry.getAttribute("position");
+			for (let i = 0; i < posed.length; i++) {
+				pos.setXYZ(i, posed[i][0], posed[i][1], posed[i][2] ?? 0);
+			}
+			pos.needsUpdate = true;
+			item.mesh.geometry.computeBoundingSphere();
+		}
 		for (const led of ledMeshes) {
 			const paint = parsed.paints[led.paintId];
 			if (!paint) continue;

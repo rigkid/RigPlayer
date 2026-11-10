@@ -1,0 +1,374 @@
+{
+	"rig": "1.0.0",
+	"document": {
+		"title": "Wave kid",
+		"defaultUnit": "px"
+	},
+	"entities": [
+		{
+			"id": "sheet",
+			"components": {
+				"rig.media.asset_ref": { "kind": "image", "path": "wave-kid.png" }
+			}
+		},
+		{
+			"id": "root",
+			"components": {
+				"rig.meta.named": { "name": "root", "stableId": "root" },
+				"rig.spatial.transform": {
+					"position": [0, 0, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.skeleton": {
+					"root": "root",
+					"bones": ["root", "hip", "chest", "head", "armL", "armR", "legL", "legR"]
+				},
+				"rig.anim.bind": {
+					"position": [0, 0, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "hip",
+			"components": {
+				"rig.meta.named": { "name": "hip", "stableId": "hip" },
+				"rig.spatial.relationship": { "parent": "root" },
+				"rig.spatial.transform": {
+					"position": [0, 112, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.bind": {
+					"position": [0, 112, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "chest",
+			"components": {
+				"rig.meta.named": { "name": "chest", "stableId": "chest" },
+				"rig.spatial.relationship": { "parent": "hip" },
+				"rig.spatial.transform": {
+					"position": [0, -36, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.bind": {
+					"position": [0, -36, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "head",
+			"components": {
+				"rig.meta.named": { "name": "head", "stableId": "head" },
+				"rig.spatial.relationship": { "parent": "chest" },
+				"rig.spatial.transform": {
+					"position": [0, -40, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.bind": {
+					"position": [0, -40, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "armL",
+			"components": {
+				"rig.meta.named": { "name": "armL", "stableId": "armL" },
+				"rig.spatial.relationship": { "parent": "chest" },
+				"rig.spatial.transform": {
+					"position": [-24, -12, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.bind": {
+					"position": [-24, -12, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "armR",
+			"components": {
+				"rig.meta.named": { "name": "armR", "stableId": "armR" },
+				"rig.spatial.relationship": { "parent": "chest" },
+				"rig.spatial.transform": {
+					"position": [24, -12, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.bind": {
+					"position": [24, -12, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "legL",
+			"components": {
+				"rig.meta.named": { "name": "legL", "stableId": "legL" },
+				"rig.spatial.relationship": { "parent": "hip" },
+				"rig.spatial.transform": {
+					"position": [-11, 10, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.bind": {
+					"position": [-11, 10, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "legR",
+			"components": {
+				"rig.meta.named": { "name": "legR", "stableId": "legR" },
+				"rig.spatial.relationship": { "parent": "hip" },
+				"rig.spatial.transform": {
+					"position": [11, 10, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				},
+				"rig.anim.bind": {
+					"position": [11, 10, 0],
+					"rotation": [0, 0, 0, 1],
+					"scale": [1, 1, 1]
+				}
+			}
+		},
+		{
+			"id": "part-torso",
+			"components": {
+				"rig.meta.named": { "name": "sweater", "stableId": "part-torso" },
+				"rig.spatial.relationship": { "parent": "chest" },
+				"rig.spatial.layer": { "order": 1 },
+				"rig.geometry.mesh": {
+					"positions": [-28, -36, 0, 28, -36, 0, 28, 36, 0, -28, 36, 0],
+					"texcoords": [0.5, 1, 0.71875, 1, 0.71875, 0.55, 0.5, 0.55],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "part-head",
+			"components": {
+				"rig.meta.named": { "name": "head", "stableId": "part-head" },
+				"rig.spatial.relationship": { "parent": "head" },
+				"rig.spatial.layer": { "order": 3 },
+				"rig.geometry.mesh": {
+					"positions": [-32, -32, 0, 32, -32, 0, 32, 32, 0, -32, 32, 0],
+					"texcoords": [0, 1, 0.25, 1, 0.25, 0.6, 0, 0.6],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "part-hair",
+			"components": {
+				"rig.meta.named": { "name": "hair", "stableId": "part-hair" },
+				"rig.spatial.relationship": { "parent": "head" },
+				"rig.spatial.transform": { "position": [0, -22, 0] },
+				"rig.spatial.layer": { "order": 4 },
+				"rig.geometry.mesh": {
+					"positions": [-32, -14, 0, 32, -14, 0, 32, 14, 0, -32, 14, 0],
+					"texcoords": [0.25, 1, 0.5, 1, 0.5, 0.825, 0.25, 0.825],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "part-armL",
+			"components": {
+				"rig.meta.named": { "name": "armL", "stableId": "part-armL" },
+				"rig.spatial.relationship": { "parent": "armL" },
+				"rig.spatial.transform": { "position": [0, 20, 0], "scale": [-1, 1, 1] },
+				"rig.spatial.layer": { "order": 0 },
+				"rig.geometry.mesh": {
+					"positions": [-14, -32, 0, 14, -32, 0, 14, 32, 0, -14, 32, 0],
+					"texcoords": [0.75, 1, 0.859375, 1, 0.859375, 0.6, 0.75, 0.6],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "part-armR",
+			"components": {
+				"rig.meta.named": { "name": "armR", "stableId": "part-armR" },
+				"rig.spatial.relationship": { "parent": "armR" },
+				"rig.spatial.transform": { "position": [0, 20, 0] },
+				"rig.spatial.layer": { "order": 2 },
+				"rig.geometry.mesh": {
+					"positions": [-14, -32, 0, 14, -32, 0, 14, 32, 0, -14, 32, 0],
+					"texcoords": [0.75, 1, 0.859375, 1, 0.859375, 0.6, 0.75, 0.6],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "sleeve",
+			"components": {
+				"rig.meta.named": { "name": "sleeve", "stableId": "sleeve" },
+				"rig.spatial.relationship": { "parent": "root" },
+				"rig.spatial.layer": { "order": 2 },
+				"rig.geometry.mesh": {
+					"positions": [10, 50, 0, 38, 50, 0, 38, 86, 0, 10, 86, 0],
+					"texcoords": [0.75, 1, 0.859375, 1, 0.859375, 0.85, 0.75, 0.85],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] },
+				"rig.anim.skin": {
+					"skeleton": "root",
+					"joints": ["chest", "armR"],
+					"inverseBind": [
+						1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -76, 0, 1,
+						1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -24, -64, 0, 1
+					],
+					"jointIndices": [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+					"jointWeights": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
+				}
+			}
+		},
+		{
+			"id": "part-legL",
+			"components": {
+				"rig.meta.named": { "name": "legL", "stableId": "part-legL" },
+				"rig.spatial.relationship": { "parent": "legL" },
+				"rig.spatial.transform": { "position": [0, 28, 0] },
+				"rig.spatial.layer": { "order": 0 },
+				"rig.geometry.mesh": {
+					"positions": [-14, -36, 0, 14, -36, 0, 14, 36, 0, -14, 36, 0],
+					"texcoords": [0, 0.6, 0.109375, 0.6, 0.109375, 0.15, 0, 0.15],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "part-legR",
+			"components": {
+				"rig.meta.named": { "name": "legR", "stableId": "part-legR" },
+				"rig.spatial.relationship": { "parent": "legR" },
+				"rig.spatial.transform": { "position": [0, 28, 0] },
+				"rig.spatial.layer": { "order": 0 },
+				"rig.geometry.mesh": {
+					"positions": [-14, -36, 0, 14, -36, 0, 14, 36, 0, -14, 36, 0],
+					"texcoords": [0, 0.6, 0.109375, 0.6, 0.109375, 0.15, 0, 0.15],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "part-shoeL",
+			"components": {
+				"rig.meta.named": { "name": "shoeL", "stableId": "part-shoeL" },
+				"rig.spatial.relationship": { "parent": "legL" },
+				"rig.spatial.transform": { "position": [2, 58, 0] },
+				"rig.spatial.layer": { "order": 1 },
+				"rig.geometry.mesh": {
+					"positions": [-16, -10, 0, 16, -10, 0, 16, 10, 0, -16, 10, 0],
+					"texcoords": [0.125, 0.15, 0.25, 0.15, 0.25, 0.025, 0.125, 0.025],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "part-shoeR",
+			"components": {
+				"rig.meta.named": { "name": "shoeR", "stableId": "part-shoeR" },
+				"rig.spatial.relationship": { "parent": "legR" },
+				"rig.spatial.transform": { "position": [2, 58, 0] },
+				"rig.spatial.layer": { "order": 1 },
+				"rig.geometry.mesh": {
+					"positions": [-16, -10, 0, 16, -10, 0, 16, 10, 0, -16, 10, 0],
+					"texcoords": [0.125, 0.15, 0.25, 0.15, 0.25, 0.025, 0.125, 0.025],
+					"indices": [0, 1, 2, 0, 2, 3],
+					"mode": "triangles"
+				},
+				"rig.render.material": { "albedoMap": "sheet", "albedoRgb": [1, 1, 1] }
+			}
+		},
+		{
+			"id": "idle",
+			"components": {
+				"rig.meta.named": { "name": "idle", "stableId": "idle" },
+				"rig.anim.clip": { "duration": 1.6, "wrap": "loop" }
+			}
+		},
+		{
+			"id": "idle-sway",
+			"components": {
+				"rig.anim.track": {
+					"clip": "idle",
+					"target": "chest",
+					"propertyKey": "rotation",
+					"times": [0, 0.8, 1.6],
+					"values": [0, 0, 0, 1, 0, 0, 0.069756, 0.997564, 0, 0, 0, 1],
+					"stride": 4
+				}
+			}
+		},
+		{
+			"id": "wave",
+			"components": {
+				"rig.meta.named": { "name": "wave", "stableId": "wave" },
+				"rig.anim.clip": { "duration": 1.2, "wrap": "loop" }
+			}
+		},
+		{
+			"id": "wave-rot",
+			"components": {
+				"rig.anim.track": {
+					"clip": "wave",
+					"target": "armR",
+					"propertyKey": "rotation",
+					"times": [0, 0.6, 1.2],
+					"values": [0, 0, 0, 1, 0, 0, 0.422618, 0.906308, 0, 0, 0, 1],
+					"stride": 4
+				}
+			}
+		},
+		{
+			"id": "mix",
+			"components": {
+				"rig.anim.blend": {
+					"root": 3,
+					"nodes": [
+						{ "id": 1, "kind": "clip", "clip": "idle" },
+						{ "id": 2, "kind": "clip", "clip": "wave" },
+						{ "id": 3, "kind": "lerp", "a": 1, "b": 2, "weight": 0.75 }
+					]
+				}
+			}
+		}
+	]
+}

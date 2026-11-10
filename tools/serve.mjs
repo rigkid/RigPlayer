@@ -52,6 +52,8 @@ function listen(port, attemptsLeft) {
 		console.log(`jailbreak http://127.0.0.1:${port}/web/?src=examples/jailbreak.rig`);
 		console.log(`demo-3d   http://127.0.0.1:${port}/web/?src=examples/demo-3d.json`);
 		console.log(`gleditor  http://127.0.0.1:${port}/web/?src=examples/demo-gleditor.json`);
+		console.log(`wave-kid  http://127.0.0.1:${port}/web/?src=examples/wave-kid.json`);
+		console.log(`play-scene http://127.0.0.1:${port}/web/?src=examples/play-scene.json`);
 	};
 	server.once("error", onError);
 	server.once("listening", onListening);
