@@ -42,6 +42,7 @@ export class TuiDock {
 				visible: init.visible !== false,
 				collapsed: !!init.collapsed,
 				closable: init.closable !== false,
+				frameless: !!init.frameless,
 				dock: init.dock || "float",
 				x: init.x ?? 0,
 				y: init.y ?? 1,
@@ -58,6 +59,7 @@ export class TuiDock {
 		if (init.panelId != null) cur.panelId = init.panelId;
 		if (init.kind != null) cur.kind = init.kind;
 		if (init.closable != null) cur.closable = init.closable;
+		if (init.frameless != null) cur.frameless = !!init.frameless;
 		return cur;
 	}
 
@@ -400,6 +402,16 @@ export class TuiDock {
 		if (!w || !w.visible) return null;
 		const h = this.winH(w);
 		const overlay = w.kind === "stage" || w.kind === "code";
+
+		if (w.frameless) {
+			const client = { x: w.x, y: w.y, w: w.w, h };
+			if (overlay) tui.clearClient(client, false);
+			tui.content = client;
+			tui.cx = client.x;
+			tui.cy = client.y;
+			return client;
+		}
+
 		const chrome = tui.windowEx(w.x, w.y, w.w, h, w.title, {
 			badge: w.badge,
 			closable: w.closable,

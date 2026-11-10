@@ -1,6 +1,6 @@
 /**
  * Shared host window registry for Viewer and Player.
- * Each host still owns File / Examples / Help; View is the dock list.
+ * Document-first: stage + document `rig.ui.*` only. Edit mode keeps File/View menus.
  */
 
 import { documentHasChrome, documentPanels, hasOrphanChrome } from "./panels.mjs";
@@ -48,6 +48,7 @@ export function syncHostWindows(dock, spec) {
 		codeVisible = true,
 		showInfo = false,
 		showPrefs = false,
+		documentFirst = false,
 		stageTitle = "Stage",
 		stageBadge = "",
 		supportedActions = new Set(),
@@ -57,20 +58,21 @@ export function syncHostWindows(dock, spec) {
 	} = spec;
 
 	dock.define(WIN.stage, {
-		title: stageTitle,
-		badge: stageBadge,
+		title: documentFirst ? "" : stageTitle,
+		badge: documentFirst ? "" : stageBadge,
 		dock: "center",
-		closable: true,
+		closable: !documentFirst,
+		frameless: !!documentFirst,
 		kind: "stage",
 	});
 
 	const keep = [WIN.stage];
 
-	if (showInfo) {
+	if (showInfo && !documentFirst) {
 		keep.push(WIN.info);
 		dock.define(WIN.info, { title: "Info", dock: "right", w: 34, h: 10, kind: "info" });
 	}
-	if (showPrefs) {
+	if (showPrefs && !documentFirst) {
 		keep.push(WIN.prefs);
 		dock.define(WIN.prefs, {
 			title: "Preferences",
@@ -129,7 +131,7 @@ export function syncHostWindows(dock, spec) {
 		keep.push(WIN.book);
 		dock.define(WIN.book, {
 			title: storyTitle,
-			badge: "LIVE",
+			badge: documentFirst ? "" : "LIVE",
 			dock: storyOnly ? "center" : "left",
 			w: 52,
 			h: 28,

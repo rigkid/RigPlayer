@@ -1,6 +1,5 @@
 /**
- * RigPlayer web host — ImTui chrome (vFont-shaped), RigKit document loop
- * underneath (pixel/Lua + scene/GLSL).
+ * RigPlayer web host — document-first play/present (ImTui for rig.ui.*; ?edit=1 for IDE).
  */
 import { parsePlayDocument, mountPlayer } from "./play.mjs";
 import { validateDocument } from "./validate.mjs";
@@ -38,10 +37,16 @@ const fileInput = document.getElementById("file");
 const pad = document.getElementById("pad");
 const padDpad = document.getElementById("pad-dpad");
 const boot = document.getElementById("boot");
+const noteEl = document.getElementById("note");
+const emptyEl = document.getElementById("empty");
 const touchUi = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
 const embed = document.documentElement.classList.contains("embed");
+const editMode = document.documentElement.classList.contains("edit");
+const documentFirst = !embed && !editMode;
 const NARROW_PX = 520;
 let infoHiddenForPhone = false;
+/** @type {{ originX: number, originY: number, cellW: number, cellH: number, cols: number, rows: number } | null} */
+let lastMetrics = null;
 
 /**
  * Stock gridMetrics keeps cellW ≥ 8 and cols ≥ 48 (min ~384–528 CSS px).
@@ -169,16 +174,36 @@ function flashStatus(message) {
 	statusLine = message;
 }
 
+function syncNote() {
+	if (!noteEl) return;
+	if (!banner || bannerLevel === "ok") {
+		noteEl.hidden = true;
+		noteEl.textContent = "";
+		noteEl.className = "";
+		return;
+	}
+	noteEl.hidden = false;
+	noteEl.textContent = banner;
+	noteEl.className = bannerLevel === "hard" ? "err" : "warn";
+}
+
+function syncEmpty() {
+	if (!emptyEl || !documentFirst) return;
+	emptyEl.hidden = !!currentMode;
+}
+
 function setShareBanner(level, message) {
 	if (!message || !level || level === "ok") {
 		banner = message && level === "ok" ? message : "";
 		bannerLevel = level === "ok" ? "ok" : "";
 		if (message && level === "ok") flashStatus(message);
+		syncNote();
 		return;
 	}
 	banner = message;
 	bannerLevel = level;
 	flashStatus(message);
+	syncNote();
 }
 
 const editor = createCodeEditor({
@@ -209,8 +234,11 @@ function syncEditor() {
 function disposeAll() {
 	handle?.dispose();
 	handle = null;
+	currentMode = "";
+	currentParsed = null;
 	lastStageKey = "";
 	if (codeHost) codeHost.hidden = true;
+	syncEmpty();
 }
 
 function placeRect(el, r, extra = {}) {
@@ -250,6 +278,9 @@ function onRuntimeError(message) {
 function showPlay(parsed, sourceText) {
 	disposeAll();
 	lastRuntimeError = null;
+	banner = "";
+	bannerLevel = "";
+	syncNote();
 	currentMode = "play";
 	handle = mountPlayer(view, parsed, { onError: onRuntimeError });
 	if (typeof sourceText === "string") {
@@ -265,11 +296,15 @@ function showPlay(parsed, sourceText) {
 	document.title = `${parsed.title || "Untitled"} · RigPlayer`;
 	flashStatus(parsed.title || "Untitled");
 	syncEditor();
+	syncEmpty();
 }
 
 function showPresent(parsed, sourceText) {
 	disposeAll();
 	lastRuntimeError = null;
+	banner = "";
+	bannerLevel = "";
+	syncNote();
 	currentMode = "present";
 	handle = mountViewer(view, parsed, presentPrefs);
 	if (typeof sourceText === "string") {
@@ -281,6 +316,13 @@ function showPresent(parsed, sourceText) {
 	flashStatus(parsed.title || "Untitled");
 	dock.setVisible(WIN.code, (parsed.codes || []).length > 0);
 	syncEditor();
+	syncEmpty();
+	if (parsed.skipped?.length) {
+		setShareBanner(
+			"soft",
+			`Skipped: ${parsed.skipped.slice(0, 6).join(", ")}${parsed.skipped.length > 6 ? "…" : ""}`,
+		);
+	}
 }
 
 async function loadText(text, label, extraMap = {}) {
@@ -632,6 +674,23 @@ fileInput?.addEventListener("change", () => {
 	fileInput.value = "";
 });
 
+document.getElementById("host-open")?.addEventListener("click", () => runCmd("open"));
+document.getElementById("empty-open")?.addEventListener("click", () => runCmd("open"));
+document.getElementById("host-share")?.addEventListener("click", () => runCmd("copy-link"));
+document.getElementById("host-examples")?.addEventListener("change", (e) => {
+	const v = e.target?.value;
+	if (!v) return;
+	location.search = `?src=${encodeURIComponent(v)}`;
+});
+{
+	const editLink = document.getElementById("host-edit");
+	if (editLink && documentFirst) {
+		const u = new URL(location.href);
+		u.searchParams.set("edit", "1");
+		editLink.href = u.pathname + u.search + u.hash;
+	}
+}
+
 const isFileDrag = (e) => Array.from(e.dataTransfer?.types || []).includes("Files");
 ["dragenter", "dragover"].forEach((ev) => {
 	window.addEventListener(ev, (e) => {
@@ -648,6 +707,36 @@ window.addEventListener("drop", (e) => {
 		files[0];
 	if (json) void loadFile(json, files.filter((f) => f !== json));
 });
+
+function cellFromCss(px, py) {
+	const m = lastMetrics;
+	if (!m) return { c: 0, r: 0 };
+	return {
+		c: Math.floor((px - m.originX) / m.cellW),
+		r: Math.floor((py - m.originY) / m.cellH),
+	};
+}
+
+function syncDocPointer(px, py) {
+	if (!documentFirst || !tuiCanvas) return;
+	ptrX = px;
+	ptrY = py;
+	const cell = cellFromCss(px, py);
+	const overUi = !!dock.drag || dock.coversChrome(cell.c, cell.r) || !!tui.activeId;
+	tuiCanvas.style.pointerEvents = overUi ? "auto" : "none";
+}
+
+if (documentFirst) {
+	window.addEventListener(
+		"pointermove",
+		(e) => {
+			if (!tuiCanvas) return;
+			const r = tuiCanvas.getBoundingClientRect();
+			syncDocPointer(e.clientX - r.left, e.clientY - r.top);
+		},
+		{ passive: true },
+	);
+}
 
 // --- Touch gamepad (phones / tablets) -------------------------------------
 // Pixel/Lua documents only take keyboard input; on a coarse-pointer device
@@ -825,9 +914,10 @@ function paintHost(now) {
 	const rect = tuiCanvas.getBoundingClientRect();
 	const dpr = Math.min(window.devicePixelRatio || 1, 3);
 	const m = hostMetrics(rect.width, rect.height);
+	lastMetrics = m;
 	tui.setPointer(ptrX, ptrY, ptrDown, ptrClicked, ptrReleased);
 	tui.beginScreen(m.originX, m.originY, m.cellW, m.cellH, m.cols, m.rows);
-	tui.fillDesk();
+	if (!documentFirst) tui.fillDesk();
 
 	const codes = currentParsed?.codes || [];
 	const hasCodes = codes.length > 0;
@@ -839,8 +929,9 @@ function paintHost(now) {
 		report: currentReport,
 		hasCode: hasCodes,
 		codeVisible: currentMode === "present",
-		showInfo: true,
-		showPrefs: currentMode === "present",
+		documentFirst,
+		showInfo: !documentFirst,
+		showPrefs: !documentFirst && currentMode === "present",
 		stageTitle:
 			currentMode === "present"
 				? documentWantsShaderPreview(currentParsed || {})
@@ -852,32 +943,41 @@ function paintHost(now) {
 		stageBadge: currentMode ? "LIVE" : "",
 		supportedActions: SUPPORTED_ACTION_IDS,
 	});
-	if (!infoHiddenForPhone && (touchUi || rect.width < NARROW_PX)) {
+	if (!documentFirst && !infoHiddenForPhone && (touchUi || rect.width < NARROW_PX)) {
 		dock.setVisible(WIN.info, false);
 		infoHiddenForPhone = true;
 	}
-	dock.define("about", {
-		title: "About",
-		dock: "float",
-		w: 46,
-		h: 16,
-		kind: "about",
-		visible: aboutWas,
-	});
-	dock.define("howto", {
-		title: "Load via data URL",
-		dock: "float",
-		w: 52,
-		h: 13,
-		kind: "howto",
-		visible: howtoWas,
-	});
+	if (!documentFirst) {
+		dock.define("about", {
+			title: "About",
+			dock: "float",
+			w: 46,
+			h: 16,
+			kind: "about",
+			visible: aboutWas,
+		});
+		dock.define("howto", {
+			title: "Load via data URL",
+			dock: "float",
+			w: 52,
+			h: 13,
+			kind: "howto",
+			visible: howtoWas,
+		});
+	}
 
-	const menus = menusForFrame();
-	const bar = tui.menubar(menus, menuOpen, m.cols < 60 ? "Rig" : "RigPlayer");
-	menuOpen = bar.open;
+	const menus = documentFirst ? [] : menusForFrame();
+	let bar = { open: "", anchors: [] };
+	if (!documentFirst) {
+		bar = tui.menubar(menus, menuOpen, m.cols < 60 ? "Rig" : "RigPlayer");
+		menuOpen = bar.open;
+	} else {
+		menuOpen = "";
+	}
 
-	const work = { x: 0, y: 1, w: m.cols, h: Math.max(6, m.rows - 2) };
+	const work = documentFirst
+		? { x: 0, y: 0, w: m.cols, h: m.rows }
+		: { x: 0, y: 1, w: m.cols, h: Math.max(6, m.rows - 2) };
 	dock.begin(tui, work, { menuOpen });
 
 	/** @type {{x:number,y:number,w:number,h:number}|null} */
@@ -891,10 +991,10 @@ function paintHost(now) {
 		if (!client) continue;
 		if (w.kind === "stage") {
 			stageClient = client;
-			if (!currentMode) {
+			if (!documentFirst && !currentMode) {
 				tui.cy = client.y + Math.floor(client.h / 2) - 1;
 				tui.text("Drop a Rig document, or File → Open", C.dim);
-				tui.text("pixel/Lua  ·  scene/GLSL  ·  ImTui host", C.dim);
+				tui.text("pixel/Lua  ·  scene/GLSL", C.dim);
 			}
 			continue;
 		}
@@ -928,16 +1028,16 @@ function paintHost(now) {
 			tui.text("RigPlayer", C.live);
 			tui.text("Full RigWorks host — documents play and present.", C.text);
 			tui.text("Viewer presents. Player plays.", C.dim);
-			tui.text("ImTui chrome. Same .rig in another app, UI included.", C.dim);
+			tui.text("Document UI travels with the .rig.", C.dim);
 			tui.text("rig.works", C.hot);
 		} else if (w.kind === "howto") {
 			tui.text("Put the whole document in the link:", C.text);
-			tui.text("1. Load it — drop the file, or File > Open.", C.text);
-			tui.text("2. File > Copy link.", C.text);
+			tui.text("1. Load it — drop the file, or Open.", C.text);
+			tui.text("2. Share / Copy link.", C.text);
 			tui.text("The copied ?doc= URL contains the document", C.dim);
 			tui.text("itself — no hosting, no external JSON.", C.dim);
 			tui.spacer();
-			tui.text("Too big (>8000 chars)? File > Save local,", C.warn);
+			tui.text("Too big (>8000 chars)? Save local,", C.warn);
 			tui.text("or host the file and use ?src=.", C.warn);
 			tui.text("Details: docs/data-url.md", C.dim);
 		} else if (w.kind === "issues") {
@@ -968,21 +1068,29 @@ function paintHost(now) {
 		}
 	}
 
-	const dt = now - last;
-	const mode =
-		(currentMode || "idle") + (documentWantsShaderPreview(currentParsed || {}) ? " glsl" : "");
-	tui.statusbar(`LIVE  ${statusLine}`, `${dt.toFixed(0)}ms ${fps.toFixed(0)}fps  ${mode}`);
-
-	const drop = tui.menuDropdown(menus, menuOpen, bar.anchors);
-	menuOpen = drop.open;
-	if (drop.cmd) runCmd(drop.cmd);
+	if (!documentFirst) {
+		const dt = now - last;
+		const mode =
+			(currentMode || "idle") + (documentWantsShaderPreview(currentParsed || {}) ? " glsl" : "");
+		tui.statusbar(`LIVE  ${statusLine}`, `${dt.toFixed(0)}ms ${fps.toFixed(0)}fps  ${mode}`);
+		const drop = tui.menuDropdown(menus, menuOpen, bar.anchors);
+		menuOpen = drop.open;
+		if (drop.cmd) runCmd(drop.cmd);
+	}
 
 	tui.finishScreen();
 	if (tuiCtx) drawTui(tuiCtx, tui, rect.width, rect.height, dpr);
 
-	const chrome = menuOpen || !!dock.drag || dock.floatsOverStage() || !!tui.activeId;
-	tuiCanvas.style.zIndex = chrome ? "5" : "2";
-	if (view) view.style.pointerEvents = chrome ? "none" : "auto";
+	if (documentFirst) {
+		const overUi = !!dock.drag || dock.coversChrome(tui.mx, tui.my) || !!tui.activeId;
+		tuiCanvas.style.pointerEvents = overUi ? "auto" : "none";
+		tuiCanvas.style.zIndex = "5";
+		if (view) view.style.pointerEvents = "auto";
+	} else {
+		const chrome = menuOpen || !!dock.drag || dock.floatsOverStage() || !!tui.activeId;
+		tuiCanvas.style.zIndex = chrome ? "5" : "2";
+		if (view) view.style.pointerEvents = chrome ? "none" : "auto";
+	}
 	tuiCanvas.style.cursor = dock.resizeCursor();
 
 	let stagePx = stageClient ? tui.rectToPixel(stageClient) : null;
@@ -1004,7 +1112,27 @@ function frameLoop(now) {
 
 	if (!embed && tuiCanvas && tuiCtx) {
 		const { stagePx, codePx } = paintHost(now);
-		if (currentMode && stagePx) {
+		if (documentFirst) {
+			view.hidden = !currentMode;
+			if (currentMode === "play" && stagePx) {
+				placeRect(view, stagePx, { imageRendering: "pixelated" });
+			} else if (currentMode && view) {
+				view.style.left = "0";
+				view.style.top = "0";
+				view.style.width = "100%";
+				view.style.height = "100%";
+				view.style.imageRendering = "auto";
+			}
+			if (currentMode && view) {
+				const w = view.clientWidth || Math.floor(view.getBoundingClientRect().width);
+				const h = view.clientHeight || Math.floor(view.getBoundingClientRect().height);
+				const stageKey = `${w}x${h}`;
+				if (w > 1 && h > 1 && stageKey !== lastStageKey) {
+					lastStageKey = stageKey;
+					handle?.resize?.();
+				}
+			}
+		} else if (currentMode && stagePx) {
 			placeRect(view, stagePx, {
 				imageRendering: currentMode === "play" ? "pixelated" : "auto",
 			});
@@ -1026,6 +1154,18 @@ function frameLoop(now) {
 	} else if (embed) {
 		view.hidden = !currentMode;
 		if (codeHost) codeHost.hidden = true;
+		// CSS fills the page; still drive present/play resize when the CSS box settles
+		// (first paint, iframe layout, mobile URL bar). Without this, ortho fit keeps
+		// the boot-time fallback size and the scene looks tiny or clipped.
+		if (currentMode && view) {
+			const w = view.clientWidth || Math.floor(view.getBoundingClientRect().width);
+			const h = view.clientHeight || Math.floor(view.getBoundingClientRect().height);
+			const stageKey = `${w}x${h}`;
+			if (w > 1 && h > 1 && stageKey !== lastStageKey) {
+				lastStageKey = stageKey;
+				handle?.resize?.();
+			}
+		}
 	}
 	if (pad) pad.hidden = !(touchUi && currentMode === "play");
 
@@ -1098,11 +1238,13 @@ async function bootFromUrl() {
 		flashStatus("Loading Jailbreak…");
 		const result = await tryFetch(srcCandidates(defaultDemo), defaultDemo);
 		if (!result.ok) {
-			flashStatus("Drop a Rig document, or File → Open");
+			flashStatus("Drop a Rig document, or Open");
 			reportFetchFailure(defaultDemo, result.attempts);
+			syncEmpty();
 		}
 	}
 	hideBoot();
+	syncEmpty();
 }
 
 requestAnimationFrame(frameLoop);

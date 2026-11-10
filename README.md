@@ -2,7 +2,7 @@
 
 **Full RigWorks host** — online (`player.rig.works`) is the special surface; desktop matches.
 
-Opens Rig documents end-to-end: pixel/Lua runtime, music, **and** scene/GLSL + code-editor documents. Browser chrome is **ImTui** — the same dockable window shell as [RigViewer](https://github.com/rigkid/RigViewer) (`web/imtui/`, vendored from Viewer). Drag a title to dock left / right / bottom; close with `[x]`; reopen from **View**. That is the web **IMui** fulfillment: RigKit documents run in the page; the toolkit is the grid, not DOM cards.
+Opens Rig documents end-to-end: pixel/Lua runtime, music, **and** scene/GLSL + code-editor documents. Default web chrome is **document-first**: full-bleed stage, Open / Share / Examples, and only `rig.ui.*` panels from the file. `?edit=1` restores the ImTui IDE shell (shared with [RigViewer](https://github.com/rigkid/RigViewer) via `web/imtui/`). `?embed=1` hides host chrome.
 
 Desktop chrome (File → Open, skipped keys) shares **[rigDocumentShell](https://github.com/rigkid/rigDocumentShell)** with Viewer.
 

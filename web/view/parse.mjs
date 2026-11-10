@@ -323,6 +323,7 @@ export function parseDocument(doc) {
 	let geometryCount = 0;
 
 	const expand = (x, y, z = 0) => {
+		if (![x, y, z].every(Number.isFinite)) return;
 		minX = Math.min(minX, x);
 		minY = Math.min(minY, y);
 		maxX = Math.max(maxX, x);
@@ -332,6 +333,11 @@ export function parseDocument(doc) {
 	};
 	const expandPts = (pts) => {
 		for (const p of pts) expand(p[0], p[1], p[2] ?? 0);
+	};
+	/** Contract field first, short alias second (legacy Viewer sketches). */
+	const num = (obj, a, b, fallback = 0) => {
+		const v = obj?.[a] ?? obj?.[b];
+		return Number.isFinite(Number(v)) ? Number(v) : fallback;
 	};
 
 	for (const e of entities) {
@@ -586,7 +592,16 @@ export function parseDocument(doc) {
 
 		if (c["rig.geometry.ellipse"]) {
 			const el = c["rig.geometry.ellipse"];
-			pushPoly("polygon", ellipsePoints(el.cx, el.cy, el.rx, el.ry), true);
+			pushPoly(
+				"polygon",
+				ellipsePoints(
+					num(el, "centerX", "cx"),
+					num(el, "centerY", "cy"),
+					num(el, "radiusX", "rx"),
+					num(el, "radiusY", "ry")
+				),
+				true
+			);
 		}
 
 		if (c["rig.geometry.line"]) {
@@ -603,10 +618,10 @@ export function parseDocument(doc) {
 		if (c["rig.geometry.regular_polygon"]) {
 			const ngon = c["rig.geometry.regular_polygon"];
 			const pts = radialPoints(
-				ngon.cx,
-				ngon.cy,
+				num(ngon, "centerX", "cx"),
+				num(ngon, "centerY", "cy"),
 				ngon.sides,
-				() => ngon.radius,
+				() => num(ngon, "radius", "radius"),
 				ngon.rotationDegrees ?? 0
 			);
 			pushPoly("polygon", pts, true);
@@ -615,10 +630,10 @@ export function parseDocument(doc) {
 		if (c["rig.geometry.star"]) {
 			const star = c["rig.geometry.star"];
 			const pts = radialPoints(
-				star.cx,
-				star.cy,
+				num(star, "centerX", "cx"),
+				num(star, "centerY", "cy"),
 				star.points * 2,
-				(i) => (i % 2 === 0 ? star.radius : star.innerRadius),
+				(i) => (i % 2 === 0 ? num(star, "radius", "radius") : num(star, "innerRadius", "innerRadius")),
 				star.rotationDegrees ?? 0
 			);
 			pushPoly("polygon", pts, true);
@@ -627,9 +642,9 @@ export function parseDocument(doc) {
 		if (c["rig.geometry.arc"]) {
 			const arc = c["rig.geometry.arc"];
 			const pts = arcPoints(
-				arc.cx,
-				arc.cy,
-				arc.radius,
+				num(arc, "centerX", "cx"),
+				num(arc, "centerY", "cy"),
+				num(arc, "radius", "radius"),
 				arc.startAngleDegrees,
 				arc.endAngleDegrees,
 				!!arc.pie
@@ -639,7 +654,12 @@ export function parseDocument(doc) {
 
 		if (c["rig.geometry.ring"]) {
 			const ring = c["rig.geometry.ring"];
-			const { outer, inner } = ringPoints(ring.cx, ring.cy, ring.outerRadius, ring.innerRadius);
+			const { outer, inner } = ringPoints(
+				num(ring, "centerX", "cx"),
+				num(ring, "centerY", "cy"),
+				num(ring, "outerRadius", "outerRadius"),
+				num(ring, "innerRadius", "innerRadius")
+			);
 			expandPts(outer.map(([x, y]) => [wx + x, wy + y]));
 			geometryCount++;
 			drawables.push({

@@ -186,8 +186,11 @@ function canvasCssSize(canvas) {
 	let height = Math.floor(rect.height) || canvas.clientHeight || stage?.clientHeight || 0;
 	if (width < 2 || height < 2) {
 		const vr = window.visualViewport;
+		const embed = document.documentElement.classList.contains("embed");
+		// Non-embed Stage sits under ImTui chrome (~70% tall). Embed is the full page.
+		const hScale = embed ? 1 : 0.7;
 		width = Math.max(2, Math.floor(vr?.width || window.innerWidth || 2));
-		height = Math.max(2, Math.floor((vr?.height || window.innerHeight || 2) * 0.7));
+		height = Math.max(2, Math.floor((vr?.height || window.innerHeight || 2) * hScale));
 	}
 	return { width, height };
 }

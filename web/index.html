@@ -4,11 +4,16 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 	<title>RigPlayer</title>
-	<meta name="description" content="Full RigWorks host — ImTui chrome, pixel/Lua and scene/GLSL in the browser." />
+	<meta name="description" content="Plays a Rig document — the document is the chrome." />
 	<script>
 		(function () {
-			var e = new URLSearchParams(location.search).get("embed");
+			var q = new URLSearchParams(location.search);
+			var e = q.get("embed");
 			if (e === "1" || e === "true") document.documentElement.classList.add("embed");
+			var edit = q.get("edit");
+			if (edit === "1" || edit === "true") document.documentElement.classList.add("edit");
+			else if (!document.documentElement.classList.contains("embed"))
+				document.documentElement.classList.add("doc");
 		})();
 	</script>
 	<style>
@@ -49,12 +54,22 @@
 			image-rendering: pixelated;
 			image-rendering: crisp-edges;
 		}
-		html.embed canvas#tui { display: none; }
+		html.doc canvas#view,
 		html.embed canvas#view {
 			inset: 0;
 			width: 100%;
 			height: 100%;
 		}
+		html.doc canvas#tui {
+			z-index: 5;
+			pointer-events: none;
+		}
+		html.embed canvas#tui { display: none; }
+		html.embed .host,
+		html.embed #empty,
+		html.embed #note { display: none !important; }
+		html.edit .host,
+		html.edit #empty { display: none !important; }
 		#code-host {
 			position: absolute;
 			z-index: 3;
@@ -63,6 +78,87 @@
 			overflow: hidden;
 			background: rgba(13, 16, 21, 0.92);
 			border: 1px solid #2a313c;
+		}
+		html.doc #code-host { z-index: 6; }
+		.host {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			z-index: 8;
+			display: flex;
+			align-items: center;
+			gap: 0.45rem;
+			padding: 0.45rem 0.65rem;
+			background: linear-gradient(to bottom, rgba(11, 13, 16, 0.92), rgba(11, 13, 16, 0));
+			pointer-events: none;
+		}
+		.host > * { pointer-events: auto; }
+		.host .brand {
+			color: #4fa3ff;
+			font-size: 0.78rem;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			margin-right: 0.35rem;
+			text-decoration: none;
+		}
+		.host button,
+		.host select,
+		.host a.ghost {
+			appearance: none;
+			border: 1px solid #2a313c;
+			background: rgba(13, 16, 21, 0.85);
+			color: #e8ecf1;
+			font: inherit;
+			font-size: 0.78rem;
+			padding: 0.28rem 0.55rem;
+			border-radius: 4px;
+			cursor: pointer;
+			text-decoration: none;
+		}
+		.host button:hover,
+		.host select:hover,
+		.host a.ghost:hover {
+			border-color: #4fa3ff;
+			color: #fff;
+		}
+		.host select { max-width: 9.5rem; }
+		.host .spacer { flex: 1; }
+		#note {
+			position: absolute;
+			left: 0.65rem;
+			right: 0.65rem;
+			bottom: 0.65rem;
+			z-index: 8;
+			padding: 0.45rem 0.65rem;
+			border: 1px solid #2a313c;
+			border-radius: 4px;
+			background: rgba(13, 16, 21, 0.92);
+			font-size: 0.78rem;
+			color: #c9d2dc;
+		}
+		#note.warn { border-color: #b8892d; color: #f0d090; }
+		#note.err { border-color: #c44; color: #f88; }
+		#empty {
+			position: absolute;
+			inset: 0;
+			z-index: 7;
+			display: grid;
+			place-content: center;
+			gap: 0.75rem;
+			text-align: center;
+			background: #0b0d10;
+			padding: 2rem;
+		}
+		#empty[hidden] { display: none !important; }
+		#empty p {
+			margin: 0;
+			color: #8b95a1;
+			font-size: 0.95rem;
+		}
+		#empty .hint {
+			font-size: 0.78rem;
+			color: #5c6570;
 		}
 		#boot {
 			position: absolute;
@@ -194,6 +290,29 @@
 		<canvas id="tui"></canvas>
 		<canvas id="view" width="128" height="128"></canvas>
 		<div id="code-host" hidden></div>
+		<div class="host" id="host">
+			<a class="brand" href="https://rig.works/">RigPlayer</a>
+			<button type="button" id="host-open">Open</button>
+			<button type="button" id="host-share">Share</button>
+			<select id="host-examples" aria-label="Examples">
+				<option value="">Examples</option>
+				<option value="examples/jailbreak.rig">Jailbreak</option>
+				<option value="examples/demo-3d.json">Demo 3D</option>
+				<option value="examples/demo-gleditor.json">GLSL editor</option>
+				<option value="examples/portable-tool.json">Portable tool</option>
+				<option value="examples/ui-panel.json">LED panel</option>
+				<option value="examples/wave-kid.json">Wave kid</option>
+				<option value="examples/play-scene.json">Play scene</option>
+			</select>
+			<span class="spacer"></span>
+			<a class="ghost" id="host-edit" href="?edit=1">Edit</a>
+		</div>
+		<div id="note" hidden></div>
+		<div id="empty" hidden>
+			<p>Drop a Rig document here</p>
+			<p class="hint">pixel / Lua · scene / GLSL — Open or pick an example</p>
+			<button type="button" id="empty-open">Open</button>
+		</div>
 		<div id="pad" hidden>
 			<div id="pad-dpad" aria-label="d-pad">
 				<span class="pad-arrow pad-up">&#9650;</span>
